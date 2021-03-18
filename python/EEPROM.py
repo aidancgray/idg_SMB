@@ -17,7 +17,35 @@ class EEPROM():
 
     def __init__(self, addr):
         self.i2cBus = SMBus(1)  # 1 = /dev/i2c-1
-        self.i2cAddr = addr     # I2C address of EEPROM     
+        self.i2cAddr = addr     # I2C address of EEPROM
+        
+        # DAC byte addresses
+        self.DACaddr = []
+        for i in range(4):
+            self.DACaddr.append([0x00, 0x20 * i])
+
+        # ADC byte addresses
+        self.ADCaddr = []
+        for i in range(8):
+            self.DACaddr.append([0x01, 0x20 * i])
+        for i in range(4):
+            self.DACaddr.append([0x02, 0x20 * i])
+
+        # ADS1015
+        self.ADS1015addr = [0x03, 0x00]
+
+        # BME280
+        self.BME280addr = [0x03, 0x20]
+
+        # PID Heaters
+        self.PIDaddr = []
+        for i in range(4):
+            self.PIDaddr.append([0x04, 0x20 * i])
+
+        # Bang-Bang Heaters
+        self.BBaddr = []
+        self.BBaddr.append([0x04, 0x80])
+        self.BBaddr.append([0x04, 0xA0])
 
     def write(self, wordAddr0, wordAddr1, data):
         """ 
@@ -69,3 +97,12 @@ class EEPROM():
             returnBytes.append(value)
 
         return returnBytes
+
+    def readout(self):
+
+        # Readout DAC Params
+        dacMem = []
+        for dac in self.DACaddr:
+            dacMem.append(self.read(dac[0], dac[1], 0x0020))
+
+        return dacMem
