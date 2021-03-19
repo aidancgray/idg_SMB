@@ -10,56 +10,103 @@
 from smbus2 import SMBus, i2c_msg
 import time
 
+BUS_ID = 1
+DEV_ID = 0x50
+
+# defaultDACData = b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x1e\x00' \
+#                  b'\x00\x07' \
+#                  b'\x0f\xf6' \
+#                  b'\x00\x00' \
+#                  b'\x00\x0f' \
+#                  b'\x00\x01' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00'
+#
+# defaultADCData = b'\x00' \
+#                  b'\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00\x00' \
+#                  b'\x00\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00\x00' \
+#                  b'\x00\x00\x00' \
+#                  b'\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00' \
+#                  b'\x00\x00\x00' \
+#                  b'\x00\x00\x00' \
+#                  b'\x00\x00\x00'
+
+
+
 class EEPROMError(IOError):
     pass
 
+
 class EEPROM():
 
+
     def __init__(self, addr):
-        self.i2cBus = SMBus(1)  # 1 = /dev/i2c-1
-        self.i2cAddr = addr     # I2C address of EEPROM
-        
+        self.i2cBus = SMBus(BUS_ID)  # 1 = /dev/i2c-1
+        self.i2cAddr = addr    # I2C address of EEPROM
+
+        #EEProm memory map
+
         # DAC byte addresses
         self.DACaddr = []
         for i in range(4):
-            self.DACaddr.append([0x00, 0x20 * i])
+            self.DACaddr.append(0x20 * i)
 
         # ADC byte addresses
         self.ADCaddr = []
         for i in range(8):
-            self.DACaddr.append([0x01, 0x20 * i])
+            self.DACaddr.append(0x0100 + 0x20 * i)
         for i in range(4):
-            self.DACaddr.append([0x02, 0x20 * i])
+            self.DACaddr.append(0x0200 + 0x20 * i)
 
-        # ADS1015
-        self.ADS1015addr = [0x03, 0x00]
+        # ADS1015 byte addresses
+        self.ADS1015addr = 0x0300
 
-        # BME280
-        self.BME280addr = [0x03, 0x20]
+        # BME280 byte addresses
+        self.BME280addr = 0x0320
 
-        # PID Heaters
+        # PID Heaters byte addresses
         self.PIDaddr = []
         for i in range(4):
-            self.PIDaddr.append([0x04, 0x20 * i])
+            self.PIDaddr.append(0x0400 + 0x20 * i)
 
-        # Bang-Bang Heaters
+        # Bang-Bang Heaters byte addresses
         self.BBaddr = []
-        self.BBaddr.append([0x04, 0x80])
-        self.BBaddr.append([0x04, 0xA0])
+        for i in range(4):
+            self.BBaddr.append(0x0480 + 0x20 * i)
 
-    def write(self, wordAddr0, wordAddr1, data):
+
+    def write(self, regAddr, data):
         """ 
-        Write data to the eeprom given the 2-byte word address and 1-byte data.
+        Write byte data (max 32 bytes) to the eeprom given regAddr
         5ms sleep is necessary after writes.
+
+         Input:
+         - regAddr:     int
+         - data:   byte Array
         
         wordAddr0:  1-byte word address  0 - x -A13-A12-A11-A10-A9 -A8
         wordAddr1:  1-byte word address A7 -A6 -A5 -A4 -A3 -A2 -A1 -A0
         data:       1-byte data         D7 -D6 -D5 -D4 -D3 -D2 -D1 -D0
         """
+
         if len(data) > 32:
             raise EEPROMError(f"Cannot write {len(data)} bytes. Max write size is 32.")
 
-        writeData = [wordAddr0, wordAddr1] + data
+        writeData = regAddr.to_bytes(2, byteorder = 'big') + data
         write = i2c_msg.write(self.i2cAddr, writeData)
 
         with SMBus(1) as bus:
@@ -67,24 +114,21 @@ class EEPROM():
 
         time.sleep(0.005)  
     
-    def read(self, wordAddr0, wordAddr1, readBytes):
+    def read(self, regAddr, numBytes):
         """ 
-        Read data from the eeprom given the 2-byte word address and 
-        number of bytes to read.
+        Read numBytes of data from the eeprom given the regAddr.
         0.5ms sleep is necessary after reads.
         
         Input:
-         - wordAddr0:  1-byte word address  0 - x -A13-A12-A11-A10-A9 -A8
-         - wordAddr1:  1-byte word address A7 -A6 -A5 -A4 -A3 -A2 -A1 -A0
-         - readBytes:  int
+         - regAddr:     int
+         - numBytes:   int
 
         Output:
          - returnBytes: A bytearray of the read bytes
         """
 
-        readData = [wordAddr0, wordAddr1]
-        write = i2c_msg.write(self.i2cAddr, readData)
-        read = i2c_msg.read(self.i2cAddr, readBytes)
+        write = i2c_msg.write(self.i2cAddr, regAddr.to_bytes(2, byteorder = 'big'))
+        read = i2c_msg.read(self.i2cAddr, numBytes)
         
         with SMBus(1) as bus:
             self.i2cBus.i2c_rdwr(write,read)
@@ -98,11 +142,11 @@ class EEPROM():
 
         return returnBytes
 
-    def readout(self):
-
-        # Readout DAC Params
-        dacMem = []
-        for dac in self.DACaddr:
-            dacMem.append(self.read(dac[0], dac[1], 0x0020))
-
-        return dacMem
+    # def readout(self):
+    #
+    #     # Readout DAC Params
+    #     dacMem = []
+    #     for dac in self.DACaddr:
+    #         dacMem.append(self.read(dac[0], dac[1], 0x0020))
+    #
+    #     return dacMem
