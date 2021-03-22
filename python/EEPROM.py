@@ -12,39 +12,40 @@ import time
 
 BUS_ID = 1
 DEV_ID = 0x50
+EEPROM_LOADED_ADDR = 8191
+EEPROM_LOADED_VAL = b'\xAA'
 
-# defaultDACData = b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x1e\x00' \
-#                  b'\x00\x07' \
-#                  b'\x0f\xf6' \
-#                  b'\x00\x00' \
-#                  b'\x00\x0f' \
-#                  b'\x00\x01' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00'
-#
-# defaultADCData = b'\x00' \
-#                  b'\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00\x00' \
-#                  b'\x00\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00\x00' \
-#                  b'\x00\x00\x00' \
-#                  b'\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00' \
-#                  b'\x00\x00\x00' \
-#                  b'\x00\x00\x00' \
-#                  b'\x00\x00\x00'
+DEFAULT_DAC_DATA = b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x1e\x00' \
+                   b'\x00\x07' \
+                   b'\x0f\xf6' \
+                   b'\x00\x00' \
+                   b'\x00\x0f' \
+                   b'\x00\x01' \
+                   b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00'
 
+DEFAULT_ADC_DATA = b'\x00' \
+                   b'\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00\x00' \
+                   b'\x00\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00\x00' \
+                   b'\x00\x00\x00' \
+                   b'\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00' \
+                   b'\x00\x00\x00' \
+                   b'\x00\x00\x00' \
+                   b'\x00\x00\x00'
 
 
 class EEPROMError(IOError):
@@ -53,13 +54,11 @@ class EEPROMError(IOError):
 
 class EEPROM():
 
-
-    def __init__(self, addr):
+    def __init__(self):
         self.i2cBus = SMBus(BUS_ID)  # 1 = /dev/i2c-1
-        self.i2cAddr = addr    # I2C address of EEPROM
+        self.i2cAddr = DEV_ID   # I2C address of EEPROM = 0x50
 
         #EEProm memory map
-
         # DAC byte addresses
         self.DACaddr = []
         for i in range(4):
@@ -68,9 +67,9 @@ class EEPROM():
         # ADC byte addresses
         self.ADCaddr = []
         for i in range(8):
-            self.DACaddr.append(0x0100 + 0x20 * i)
+            self.ADCaddr.append(0x0100 + 0x20 * i)
         for i in range(4):
-            self.DACaddr.append(0x0200 + 0x20 * i)
+            self.ADCaddr.append(0x0200 + 0x20 * i)
 
         # ADS1015 byte addresses
         self.ADS1015addr = 0x0300
@@ -85,22 +84,40 @@ class EEPROM():
 
         # Bang-Bang Heaters byte addresses
         self.BBaddr = []
-        for i in range(4):
+        for i in range(2):
             self.BBaddr.append(0x0480 + 0x20 * i)
 
+        # Check if eeprom has been initialized already
+        if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
+            self._initialize_eeprom()
+
+            if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
+                raise EEPROMError("Failed to initialize eeprom to default values")    
+
+    def _initialize_eeprom(self):
+        """
+        Set the default values of the eeprom. This is only done when
+        the EEPROM_LOADED_VAL is set.
+        """
+        # Write default values to DAC0-3
+        for DAC in self.DACaddr:
+            self.write(DAC, DEFAULT_DAC_DATA)
+
+        # Write default values to ADC0-11
+        for ADC in self.ADCaddr:
+            self.write(ADC, DEFAULT_ADC_DATA)
+
+        # Set the check byte
+        self.write(EEPROM_LOADED_ADDR, EEPROM_LOADED_VAL)
 
     def write(self, regAddr, data):
         """ 
-        Write byte data (max 32 bytes) to the eeprom given regAddr
+        Write byte data (max 32 bytes) to the eeprom given regAddr.
         5ms sleep is necessary after writes.
 
-         Input:
-         - regAddr:     int
-         - data:   byte Array
-        
-        wordAddr0:  1-byte word address  0 - x -A13-A12-A11-A10-A9 -A8
-        wordAddr1:  1-byte word address A7 -A6 -A5 -A4 -A3 -A2 -A1 -A0
-        data:       1-byte data         D7 -D6 -D5 -D4 -D3 -D2 -D1 -D0
+        Input:
+         - regAddr: int
+         - data:    byte Array 
         """
 
         if len(data) > 32:
@@ -121,10 +138,10 @@ class EEPROM():
         
         Input:
          - regAddr:     int
-         - numBytes:   int
+         - numBytes:    int
 
         Output:
-         - returnBytes: A bytearray of the read bytes
+         - returnBytes: byte array
         """
 
         write = i2c_msg.write(self.i2cAddr, regAddr.to_bytes(2, byteorder = 'big'))
@@ -141,12 +158,3 @@ class EEPROM():
             returnBytes.append(value)
 
         return returnBytes
-
-    # def readout(self):
-    #
-    #     # Readout DAC Params
-    #     dacMem = []
-    #     for dac in self.DACaddr:
-    #         dacMem.append(self.read(dac[0], dac[1], 0x0020))
-    #
-    #     return dacMem
