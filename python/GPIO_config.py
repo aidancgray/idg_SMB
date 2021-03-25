@@ -17,7 +17,7 @@ def cleanup():
     except RuntimeWarning:
         return
     
-    # logging.warn('reset GPIO configuration on exit. thread=%s' % (threading.current_thread().name))
+    #logging.warn('reset GPIO configuration on exit.')
 
 
 class io():
@@ -128,7 +128,7 @@ class io():
         # Set DAC /LDAC to output and low level for Asynchronous Mode
         pin = self.pin_map['nLDAC']
         GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, 0)
+        GPIO.output(pin, 1)
 
         # Set DAC CLR to output.
         pin = self.pin_map['DAC_CLR']
@@ -151,31 +151,31 @@ class io():
         pin = self.pin_map['DAC_CLR']
         GPIO.output(pin, state)
 
-    def dac_bank_sel(self, state):
-        pin = self.pin_map['nDAC_BANCK_SEL']
+    def dac_mss_sel(self, state):
+        pin = self.pin_map['nDAC_MSS']
         GPIO.output(pin, state)
 
     def dac_sel(self, dac_id):
-        cs0 = self.pin_map['nDAC_CS0']
-        cs1 = self.pin_map['nDAC_CS1']
+        ssa0 = self.pin_map['nDAC_SSA0']
+        ssa1 = self.pin_map['nDAC_SSA1']
 
         self.dac_bank_sel(False)
 
         if dac_id == 0:
-            GPIO.output(cs1, 0)
-            GPIO.output(cs0, 0)
+            GPIO.output(ssa1, 0)
+            GPIO.output(ssa0, 0)
         elif dac_id == 1:
-            GPIO.output(cs1, 0)
-            GPIO.output(cs0, 1)
+            GPIO.output(ssa1, 0)
+            GPIO.output(ssa0, 1)
         elif dac_id == 2:
-            GPIO.output(cs1, 1)
-            GPIO.output(cs0, 0)
+            GPIO.output(ssa1, 1)
+            GPIO.output(ssa0, 0)
         elif dac_id == 3:
-            GPIO.output(cs1, 1)
-            GPIO.output(cs0, 1)
+            GPIO.output(ssa1, 1)
+            GPIO.output(ssa0, 1)
         else:
-            GPIO.output(cs1, 1)
-            GPIO.output(cs0, 1)
+            GPIO.output(ssa1, 1)
+            GPIO.output(ssa0, 1)
 
     # There are 12 ADCs divided into three banks of 4. To enable an
     # ADC select the bank using the bank_sel lines and then the chip
