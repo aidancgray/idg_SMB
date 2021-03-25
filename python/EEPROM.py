@@ -9,6 +9,7 @@
 
 from smbus2 import SMBus, i2c_msg
 import time
+import logging
 
 BUS_ID = 1
 DEV_ID = 0x50
