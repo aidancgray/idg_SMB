@@ -17,7 +17,7 @@ def cleanup():
     except RuntimeWarning:
         return
     
-    logging.warn('reset GPIO configuration on exit. thread=%s' % (threading.current_thread().name))
+    # logging.warn('reset GPIO configuration on exit. thread=%s' % (threading.current_thread().name))
 
 
 class io():
@@ -41,15 +41,15 @@ class io():
             "nDAC_RESET": 12,
             "nLDAC": 13,
             "nADC_BANK1_SEL": 16,
-            "nDAC_CS1": 17,
-            "nDAC_CS0": 18,
+            "nDAC_SSA1": 17,        # DAC Slave Select Address 1
+            "nDAC_SSA0": 18,        # DAC Slave Select Address 0
             "SPI1_MISO": 19,
             "SPI1_MOSI": 20,
             "SPI1_SCLK": 21,
             "nADC_BANK3_SEL": 22,
             "DAC_CLR": 23,
             "GPIO24": 24,
-            "nDAC_BANCK_SEL": 25,
+            "nDAC_MSS": 25,         # DAC Master Slave Select
             "nADC_SYNC": 26,
             "nADC_BANK2_SEL": 27,
         }
@@ -100,20 +100,20 @@ class io():
         # GPIO.setup(pin, GPIO.IN)
         GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-        # Set /DAC_BANK_SEL to output.
-        pin = self.pin_map['nDAC_BANCK_SEL']
+        # Set /DAC_MSS to output.
+        pin = self.pin_map['nDAC_MSS']
         GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, 0)  # disable bank select
+        GPIO.output(pin, 1)  # enable master slave select
 
-        # Set /DAC_SC0 to output.
-        pin = self.pin_map['nDAC_CS0']
+        # Set /DAC_SSA0 to output.
+        pin = self.pin_map['nDAC_SSA0']
         GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, 1)
+        GPIO.output(pin, 0)
 
-        # Set /DAC_SC1 to output.
-        pin = self.pin_map['nDAC_CS1']
+        # Set /DAC_SSA1 to output.
+        pin = self.pin_map['nDAC_SSA1']
         GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, 1)
+        GPIO.output(pin, 0)
 
         # Set ADC /SYNC to output.
         pin = self.pin_map['nADC_SYNC']
