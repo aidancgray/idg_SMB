@@ -36,6 +36,9 @@ class DAC():
         elif self.idx == 2:
             GPIO.output(self.ssa1, 1)  # set SSA1
             GPIO.output(self.ssa0, 0)  # set SSA0 to DAC1
+        elif self.idx == 3:
+            GPIO.output(self.ssa1, 1)  # set SSA1
+            GPIO.output(self.ssa0, 1)  # set SSA0 to DAC1
         else:
             GPIO.output(self.ssa1, 1)  # set SSA1
             GPIO.output(self.ssa0, 1)  # set SSA0 to DAC1
