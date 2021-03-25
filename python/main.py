@@ -6,11 +6,12 @@ import logging
 import sys
 import time
 import RPi.GPIO as GPIO
-import spidev
+#import spidev
 
 import EEPROM
 import GPIO_config
 import Gbl
+from DAC8775 import DAC
 
 
 def runSMB(logLevel=logging.INFO):
@@ -22,22 +23,37 @@ def runSMB(logLevel=logging.INFO):
     logger.info('starting logging')
 
     # Read in EEPROM data
-    eeprom = EEPROM()
+    # eeprom = EEPROM()
 
-    tlm = Gbl.telemetry
+    tlm = Gbl.telemetry     # Telemetry dictionary
+    io = GPIO_config.io()   # GPIO pin configuration
+    
+    dac0 = DAC(0, io)                   # initialize DAC0
+    dac0.dac_write_data(0x06, 0x000F) 
+    dac0.dac_write_data(0x07, 0x03C1)
+    dac0.dac_write_data(0x03, 0x01F0)
+    dac0.dac_write_data(0x04, 0x1005)
+    dac0.dac_write_data(0x05, 0x0000)
+    io.dac_ldac(1)
+    io.dac_ldac(0)
+    io.dac_ldac(1)
+    dac0.dac_write_data(0x03, 0x0020)
+    dac0.dac_write_data(0x05, 0xFFFF)
+    io.dac_ldac(1)
+    io.dac_ldac(0)
+    io.dac_ldac(1)
 
-    io = GPIO_config.io()
-    # reset both DACs
-    io.dac_reset(0)
-    time.sleep(0.001)
-    io.dac_reset(1)
-    time.sleep(0.001)
+    readBack = dac0.dac_read_data(11)
+    
+    readBytes = readBack.to_bytes(3, byteorder='big')
+    for byte in readBytes:
+        print(format(byte,"08b"))
 
-    #io.dac_bank_sel(1)
+    uI = input("press any key to finish")
 
 
 def main():
-    # runSMB(logging.INFO)
+    runSMB(logging.INFO)
 
 if __name__ == "__main__":
     main()
