@@ -171,8 +171,19 @@ class DAC():
         self.write_control_var(self.controlVar)
 
     def write_control_var(self, cv):
+        """
+        This method takes in a control variable value and writes it to the DAC.
+        Each DAC channel can only hold 2^16 bits, so we first fill up channel A,
+        then B, C, and D. Each channel is selected, then the data is loaded into the
+        DAC set register address. After this is done for each channel, the "load DAC"
+        GPIO pin is flipped, pushing the channel buffers into the DAC registers.
+
+        Input:
+        - cv: float
+        """
+
         controlVar_t = cv  # temporary variable
-        channelSelect = 2**4  # set Disable SDO bit
+        DSDO_bit = 2**4  # set Disable SDO bit
 
         # 4 channels: A, B, C, D
         # We load each to max, then spill over into the next channel.
@@ -185,7 +196,7 @@ class DAC():
                 channelList[i] = controlVar_t
                 controlVar_t = 0
 
-            channelSelect = channelSelect | 2**(5+i)
+            channelSelect = DSDO_bit | 2**(5+i)
             self.dac_write_data(0x03, channelSelect)  # Select each channel
             self.dac_write_data(0x05, channelList[i])  # Write to the channel
 
