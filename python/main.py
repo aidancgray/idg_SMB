@@ -32,8 +32,22 @@ async def runSMB(logLevel=logging.INFO):
     #io = GPIO_config.io()  # GPIO pin configuration
 
     bme280 = BME280()
-    readBytes = bme280.read(0xF6, 2)
-    print(readBytes)
+
+    mode = bme280.read(0xF4, 1)    
+    print(f'mode: {mode!r}')
+    
+    ctrl_hum = b'\x01' # oversampling x1 for H
+    bme280.write(0xF2, ctrl_hum)
+
+    ctrl_meas = b'\x25' # forcedMode on (1 reading, then back to sleep mode) & oversampling x1 for P & T
+    bme280.write(0xF4, ctrl_meas)
+
+    uP = bme280.read(0xF7, 3)
+    uT = bme280.read(0xFA, 3)
+    uH = bme280.read(0xFD, 2)
+    print(f'uP: {uP!r}')
+    print(f'uT: {uT!r}')
+    print(f'uH: {uH!r}')
 
     #dacList = []
     #dac0 = DAC(0, io, 'PID')  # initialize DAC0

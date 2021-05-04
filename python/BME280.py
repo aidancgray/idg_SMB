@@ -16,9 +16,25 @@ class BME280:
     def __init__(self):
         self.i2cBus = SMBus(BUS_ID)
         self.i2cAddr = DEV_ID
-        self.writeAddr = self.i2cAddr << 1
-        self.readAddr = self.writeAddr | 1
 
+    def write(self, regAddr, data):
+        """ 
+        Input:
+         - regAddr: int
+         - data:    byte Array 
+        """
+
+        if len(data) > 1:
+            raise EEPROMError(f"Cannot write {len(data)} bytes. Max write size is 1 byte.")
+
+        writeData = regAddr.to_bytes(1, byteorder = 'big') + data
+        write = i2c_msg.write(self.i2cAddr, writeData)
+
+        with SMBus(BUS_ID) as bus:
+            bus.i2c_rdwr(write)    
+
+        time.sleep(0.005)  
+        
     def read(self, regAddr, numBytes):
         """
         Input:
@@ -29,8 +45,8 @@ class BME280:
          - returnBytes: byte array
         """
 
-        write = i2c_msg.write(self.writeAddr, regAddr.to_bytes(1, byteorder='big'))
-        read = i2c_msg.read(self.readAddr, numBytes)
+        write = i2c_msg.write(self.i2cAddr, regAddr.to_bytes(1, byteorder='big'))
+        read = i2c_msg.read(self.i2cAddr, numBytes)
         
         with SMBus(BUS_ID) as bus:
             bus.i2c_rdwr(write,read)
