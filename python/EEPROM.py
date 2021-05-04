@@ -127,7 +127,7 @@ class EEPROM():
         writeData = regAddr.to_bytes(2, byteorder = 'big') + data
         write = i2c_msg.write(self.i2cAddr, writeData)
 
-        with SMBus(1) as bus:
+        with SMBus(BUS_ID) as bus:
             bus.i2c_rdwr(write)    
 
         time.sleep(0.005)  
@@ -148,8 +148,8 @@ class EEPROM():
         write = i2c_msg.write(self.i2cAddr, regAddr.to_bytes(2, byteorder = 'big'))
         read = i2c_msg.read(self.i2cAddr, numBytes)
         
-        with SMBus(1) as bus:
-            self.i2cBus.i2c_rdwr(write,read)
+        with SMBus(BUS_ID) as bus:
+            bus.i2c_rdwr(write,read)
 
         time.sleep(0.0005)
 
