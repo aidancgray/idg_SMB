@@ -7,14 +7,16 @@ import sys
 import time
 import RPi.GPIO as GPIO
 import asyncio
+import argparse
+import shlex
 #import spidev
 
-import EEPROM
 import GPIO_config
 import Gbl
 from DAC8775 import DAC
 from TCPip import TCPServer
 from cmdHandler import CMDLoop
+from BME280 import BME280
 
 async def runSMB(logLevel=logging.INFO):
     logging.basicConfig(datefmt = "%Y-%m-%d %H:%M:%S",
@@ -24,14 +26,20 @@ async def runSMB(logLevel=logging.INFO):
     logger.setLevel(logLevel)
     logger.info('starting logging')
 
-    # Read in EEPROM data
-    #eeprom = EEPROM()
+    #eeprom = EEPROM()  # Read in EEPROM data
 
-    #tlm = Gbl.telemetry     # Telemetry dictionary
-    #io = GPIO_config.io()   # GPIO pin configuration
-    
-    #dac0 = DAC(0, io, 'PID')    # initialize DAC0
+    #tlm = Gbl.telemetry  # Telemetry dictionary
+    #io = GPIO_config.io()  # GPIO pin configuration
 
+    bme280 = BME280()
+    readBytes = bme280.read(0xF6, 2)
+    print(readBytes)
+
+    #dacList = []
+    #dac0 = DAC(0, io, 'PID')  # initialize DAC0
+    #dacList.append(dac0)
+
+    ### DAC READ/WRITE STRUCTURE ######
     # dac0.dac_write_data(0x06, 0x000F) 
     # dac0.dac_write_data(0x07, 0x03C1)
     # dac0.dac_write_data(0x03, 0x01F0)
@@ -51,15 +59,28 @@ async def runSMB(logLevel=logging.INFO):
     # readBytes = readBack.to_bytes(3, byteorder='big')
     # for byte in readBytes:
     #     print(format(byte,"08b"))
-    # uI = input("press any key to finish")
+    ###################################
 
-    tcpServer = TCPServer('', 9999)
-    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit)
+    #tcpServer = TCPServer('', 9999)
+    #cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, io, dacList)
 
-    await asyncio.gather(tcpServer.start(), cmdHandler.start())
+    #await asyncio.gather(tcpServer.start(), cmdHandler.start())
 
-def main():
-    asyncio.run(runSMB(logging.INFO))
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    if isinstance(argv, str):
+        argv = shlex.split(argv)
+
+    parser = argparse.ArgumentParser(sys.argv[0])
+    parser.add_argument('--logLevel', type=int, default=logging.INFO,
+                        help='logging threshold. 10=debug, 20=info, 30=warn')
+    parser.add_argument('--sensorPeriod', type=float, default=1.0,
+                        help='how often to sample the sensors')
+
+    opts = parser.parse_args(argv)
+
+    asyncio.run(runSMB(logging.DEBUG))
 
 if __name__ == "__main__":
     main()
