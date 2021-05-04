@@ -12,7 +12,7 @@ class TCPServer():
     async def start(self):
         server = await asyncio.start_server(self.handle_client, self.hostname, self.port)
         addr = server.sockets[0].getsockname()
-        self.logger.info("listening: %s", addr)
+        self.logger.info('listening: %s', addr)
 
         async with server:
             await server.serve_forever()
@@ -28,12 +28,12 @@ class TCPServer():
                 data = await reader.read(100)
                 message = data.decode()
                 addr = writer.get_extra_info('peername')
-                self.logger.info(f"received: {message!r} from {addr!r}")
+                self.logger.info(f'received: {message!r} from {addr!r}')
                 asyncio.create_task(self.enqueue_cmd(message))
                 await writer.drain()
 
             except Exception as e2:
-                self.logger.error("Unexpected error:", e2)
+                self.logger.error('Unexpected error: ', e2)
 
             await writer.drain()
 
@@ -43,7 +43,8 @@ class TCPServer():
     async def xmit_loop(self, reader, writer):
         while True:
             msg = await self.qXmit.get()
-            self.logger.info(f'consuming: {msg!r} from qXmit')
+            addr = writer.get_extra_info('peername')
+            self.logger.info(f'sending: {msg!r} to {addr!r}')
             writer.write(msg.encode())
 
     async def enqueue_cmd(self, message):
