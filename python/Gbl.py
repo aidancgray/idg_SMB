@@ -2,6 +2,7 @@ import numpy as np
 
 # Global Dictionary to hold shared TLM values
 telemetry = {
+    'id': 0,
     'humidity': 0.0,
     'rtd0': np.nan,
     'rtd1': np.nan,
