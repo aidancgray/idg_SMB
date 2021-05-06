@@ -60,6 +60,14 @@ class io():
         """ SET GPIO numbering mode to use GPIO designation, NOT pin numbers """
         GPIO.setmode(GPIO.BCM)
 
+        # Set HI_PWR_EN1 to output.
+        pin = self.pin_map['HI_PWR_EN1']
+        GPIO.setup(pin, GPIO.OUT)
+
+        # Set HI_PWR_EN2 to output.
+        pin = self.pin_map['HI_PWR_EN2']
+        GPIO.setup(pin, GPIO.OUT)
+
         # Set /ADC_SC0 to output.
         pin = self.pin_map['nADC_CS0']
         GPIO.setup(pin, GPIO.OUT)

@@ -4,23 +4,47 @@ from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
 
 class CMDLoop:
-    def __init__(self, qCmd, qXmit, eeprom, tlm, io, dacList):
+    def __init__(self, qCmd, qXmit, eeprom, tlm, io, bme280, ads1015, hi_pwr_htrs, dacList):
         self.logger = logging.getLogger('smb')
         self.qCmd = qCmd
         self.qXmit = qXmit
         self.eeprom = eeprom
         self.tlm = tlm
         self.io = io
+        self.bme280 = bme280
+        self.ads1015 = ads1015
+        self.hi_pwr_htrs = hi_pwr_htrs
         self.dacList = dacList
 
     async def start(self):
         while True:
+            ### Get BME280 environment data ###
+            self.tlm['env_temp'] = self.bme280.get_temperature()
+            self.tlm['env_press'] = self.bme280.get_pressure()
+            self.tlm['env_hum'] = self.bme280.get_humidity()
+
+            ### Heater Loop ###
+            # check if a conversion is occurring
+            if self.ads1015.conversion_status() == 1:
+                lastConvert = self.ads1015.last_convert()
+                lastCurrent = self.ads1015.conversion_read()
+                
+                # check which conversion happened last
+                if lastConvert == 0:
+                    self.tlm['htr_current1'] = lastCurrent
+                    self.ads1015.convert_3()
+
+                elif lastConvert == 3:
+                    self.tlm['htr_current2'] = lastCurrent
+                    self.ads1015.convert_0()
+
+            ### Check the Command Queue ###
             if not self.qCmd.empty():
                 msg = await self.qCmd.get()
                 retData = await self.parse_raw_command(msg)
                 await self.enqueue_xmit(retData)
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.000001)
 
     async def parse_raw_command(self, rawCmd):
         cmdStr = rawCmd.strip()  # remove whitespace at the end
@@ -168,8 +192,12 @@ class CMDLoop:
             elif cmd == 'rst':
                 pass
 
-            elif cmd == 'bb':
-                pass
+            elif cmd == 'hi_pwr':
+                if int(p2) == 0:
+                    self.hi_pwr_htrs[int(p1)-1].power_off()
+                elif int(p2) == 1:
+                    self.hi_pwr_htrs[int(p1)-1].power_on()
+                retData = 'OK'
 
             elif cmd == 'pid_i':
                 pass
@@ -252,8 +280,15 @@ class CMDLoop:
             elif cmd == 'pid_d':
                 pass
 
-            elif cmd == 'bb':
-                pass
+            elif cmd == 'hi_pwr':
+                retData = self.hi_pwr_htrs[int(p1)-1].status()
+
+                if retData == 0:
+                    retData = 'off'
+                elif retData == 1:
+                    retData = 'on'
+                else:
+                    retData = 'GPIO read error'
 
             elif cmd == 'pid_i':
                 pass
@@ -283,13 +318,31 @@ class CMDLoop:
                 pass
 
             elif cmd == 'htr_cur':
-                pass
+                if p1 == 1:
+                    retData = 'htr_current1='+str(self.tlm['htr_current1'])
+                elif p1 == 2:
+                    retData = 'htr_current2='+str(self.tlm['htr_current2'])
+                else:
+                    retData = f'command failure: unknown arg {p1!r}'
 
             elif cmd == 'setpoint':
                 pass
 
             elif cmd == 'excit':
                 pass
+            
+            # Get BME280 data
+            elif cmd == 'env':
+                if p1 == 'temp':
+                    retData = 'temp='+str(self.tlm['env_temp'])+'C'
+                elif p1 == 'press':
+                    retData = 'press='+str(self.tlm['env_press'])+'Pa'
+                elif p1 == 'hum':
+                    retData = 'hum='+str(self.tlm['env_hum'])+'%'
+                elif p1 == 'all':
+                    retData = 'temp='+str(self.tlm['env_temp'])+'C,press='+str(self.tlm['env_press'])+'Pa,hum='+str(self.tlm['env_hum'])+'%'
+                else:
+                    retData = f'command failure: unknown arg {p1!r}'
             
             # just a couple test functions
             elif cmd == 'test_a':
@@ -305,7 +358,8 @@ class CMDLoop:
 
             return retData
 
-        except TypeError:
+        except TypeError as e1:
+            #print(e1)
             retData = 'command failure: expected args float or int'
             self.logger.error(retData)
             return retData
