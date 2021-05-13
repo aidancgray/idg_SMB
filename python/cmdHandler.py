@@ -41,8 +41,10 @@ class CMDLoop:
             ### Check the Command Queue ###
             if not self.qCmd.empty():
                 msg = await self.qCmd.get()
-                retData = await self.parse_raw_command(msg)
-                await self.enqueue_xmit(retData)
+                writer = msg[0]
+                cmd = msg[1]
+                retData = await self.parse_raw_command(cmd)
+                await self.enqueue_xmit((writer, retData+'\n'))
 
             await asyncio.sleep(0.000001)
 
@@ -369,4 +371,4 @@ class CMDLoop:
         return retData
 
     async def enqueue_xmit(self, msg):
-        await self.qXmit.put(msg+'\n')
+        await self.qXmit.put(msg)

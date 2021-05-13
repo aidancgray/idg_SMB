@@ -16,6 +16,7 @@ import Gbl
 from DAC8775 import DAC
 from TCPip import TCPServer
 from cmdHandler import CMDLoop
+from transmitter import Transmitter
 from BME280 import BME280
 from ADS1015 import ADS1015
 from hi_pwr_htr import hi_pwr_htr
@@ -43,8 +44,9 @@ async def runSMB(logLevel=logging.INFO):
 
     tcpServer = TCPServer('', 9999)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, io, bme280, ads1015, hi_pwr_htrs, dacList)
+    transmitter = Transmitter(tcpServer.qXmit)
 
-    await asyncio.gather(tcpServer.start(), cmdHandler.start())
+    await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
 
 def main(argv=None):
     if argv is None:
