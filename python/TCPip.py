@@ -19,7 +19,10 @@ class TCPServer():
         self.logger.info('listening on: %s', addr)
 
         async with server:
-            await server.serve_forever()
+            await asyncio.gather(server.serve_forever())
+
+    def stopped(self):
+        self.logger.info('Server Stopped')
 
     async def handle_client(self, reader, writer):
         await self.cmd_loop(reader, writer)
@@ -40,6 +43,8 @@ class TCPServer():
                     cmdLoopCheck = False
                     asyncio.create_task(self.enqueue_xmit((writer, 'closing connection...\n')))
                     await asyncio.sleep(0.1)
+                elif message.lower() == 'exit\r\n':
+                    sys.exit()
                 else:
                     asyncio.create_task(self.enqueue_cmd((writer, message)))
                     await writer.drain()

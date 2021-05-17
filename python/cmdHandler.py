@@ -52,7 +52,7 @@ class CMDLoop:
         cmdStr = rawCmd.strip()  # remove whitespace at the end
         
         if cmdStr[0] == '~' or cmdStr[0] == '?':
-            retData = await self.legacy_command_parse(cmdStr)
+            retData = await self.legacy_command_parser(cmdStr)
         
         elif cmdStr[0] == '$':
             cmdStr = cmdStr[1:]  # Remove the start character

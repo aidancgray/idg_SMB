@@ -21,6 +21,10 @@ from BME280 import BME280
 from ADS1015 import ADS1015
 from hi_pwr_htr import hi_pwr_htr
 
+def custom_except_hook(loop, context):
+    if repr(context['exception']) == 'SystemExit()':
+        print('Exiting Program...')
+
 async def runSMB(logLevel=logging.INFO):
     logging.basicConfig(datefmt = "%Y-%m-%d %H:%M:%S",
                         format = "%(asctime)s.%(msecs)03dZ %(name)-10s %(levelno)s %(filename)s:%(lineno)d %(message)s")
@@ -45,7 +49,7 @@ async def runSMB(logLevel=logging.INFO):
     tcpServer = TCPServer('', 9999)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, io, bme280, ads1015, hi_pwr_htrs, dacList)
     transmitter = Transmitter(tcpServer.qXmit)
-
+    
     await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
 
 def main(argv=None):
@@ -61,8 +65,12 @@ def main(argv=None):
                         help='how often to sample the sensors')
 
     opts = parser.parse_args(argv)
-
-    asyncio.run(runSMB(logging.DEBUG))
+    loop = asyncio.get_event_loop()
+    loop.set_exception_handler(custom_except_hook)
+    try:
+        loop.run_until_complete(runSMB(logging.INFO))
+    except KeyboardInterrupt:
+        print('Exiting Program...')
 
 if __name__ == "__main__":
     main()
