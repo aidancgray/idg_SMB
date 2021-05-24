@@ -35,7 +35,7 @@ class TCPServer():
                 
         while cmdLoopCheck:        
             try:
-                data = await reader.read(100)
+                data = await reader.readuntil(separator=b'\n')
                 message = data.decode()
                 self.logger.info(f'received: {message!r} from {addr!r}')
                 
