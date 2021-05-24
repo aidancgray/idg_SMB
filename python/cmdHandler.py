@@ -2,14 +2,16 @@ import logging
 import asyncio
 from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
+from chebyFit import chebyFit
 
 class CMDLoop:
-    def __init__(self, qCmd, qXmit, eeprom, tlm, io, bme280, ads1015, hi_pwr_htrs, dacList):
+    def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList):
         self.logger = logging.getLogger('smb')
         self.qCmd = qCmd
         self.qXmit = qXmit
         self.eeprom = eeprom
         self.tlm = tlm
+        self.cal = cal
         self.io = io
         self.bme280 = bme280
         self.ads1015 = ads1015
@@ -56,7 +58,7 @@ class CMDLoop:
         
         elif cmdStr[0] == '$':
             cmdStr = cmdStr[1:]  # Remove the start character
-            cmdStr = cmdStr.replace(' ', '')  # Remove all whitespace
+            # cmdStr = cmdStr.replace(' ', '')  # Remove all whitespace
             cmdStrList = cmdStr.split(',')  # split the command on the commas
             
             if cmdStrList[0] == 'set':
@@ -221,6 +223,21 @@ class CMDLoop:
 
             elif cmd == 'sns_units':
                 pass
+            
+            elif cmd == 'sns_cal':
+                sensor = p1
+                tmpCalData = p2.split(';')
+                calData = []
+
+                for point in tmpCalData:
+                    newPt = point.split(' ')
+                    calData.append(newPt)
+
+                # convert calData[][0] points from sensor units to bits
+                chebyshevFit = chebyFit(calData, 10)
+                self.cal[sensor]['coeffs'] = chebyshevFit.chebyFit[0]
+                self.cal[sensor]['zl'] = chebyshevFit.chebyFit[1]
+                self.cal[sensor]['zu'] = chebyshevFit.chebyFit[2]
 
             elif cmd == 'htr_cur':
                 pass

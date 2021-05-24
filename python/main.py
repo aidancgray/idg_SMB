@@ -36,6 +36,7 @@ async def runSMB(logLevel=logging.INFO):
     eeprom = EEPROM()  # Read in EEPROM data
 
     tlm = Gbl.telemetry  # Telemetry dictionary
+    cal = Gbl.sensor_cal # Sensor Calibration dictionary
     io = GPIO_config.io()  # GPIO pin configuration
 
     bme280 = BME280()  # Onboard Temperature, Pressure, and Humidity Sensor
@@ -47,7 +48,7 @@ async def runSMB(logLevel=logging.INFO):
     dacList.append(dac0)
 
     tcpServer = TCPServer('', 9999)
-    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, io, bme280, ads1015, hi_pwr_htrs, dacList)
+    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList)
     transmitter = Transmitter(tcpServer.qXmit)
     
     await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())

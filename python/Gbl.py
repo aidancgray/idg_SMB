@@ -130,3 +130,66 @@ telemetry = {
     'htr_current1': 0.0,
     'htr_current2': 0.0,
 }
+
+sensor_cal = {
+    1: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    2: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    3: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    4: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    5: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    6: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    7: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    8: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    9: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    10: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    11: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    },
+    12: {
+        'coeffs': [],
+        'zl': 0,
+        'zu': 0
+    }
+}
