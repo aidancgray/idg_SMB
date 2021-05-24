@@ -58,14 +58,14 @@ class chebyFit():
 
         chebCoefs = cheb[0].coef
         ssreg = cheb[1][0][0]
-        print(f'r={ssreg}')
+        # print(f'r={ssreg}')
 
         ybar = np.sum(self.yData)/len(self.yData)
-        print(f'ybar={ybar}')
+        # print(f'ybar={ybar}')
         sstot = np.sum((self.yData - ybar)**2)
-        print(f'sstot={sstot}')
+        # print(f'sstot={sstot}')
         r2 = 1 - ssreg/sstot
-        print(f'r2={r2}')
+        # print(f'r2={r2}')
         
         ZL = min(self.xData)
         ZU = max(self.xData)
