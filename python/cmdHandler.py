@@ -40,6 +40,14 @@ class CMDLoop:
                     self.tlm['htr_current2'] = lastCurrent
                     self.ads1015.convert_0()
 
+            ### Temperature Sensor ###
+            # TODO: 
+            # - get sensor readings
+            # - convert readings using chebyFits
+            # - update telemetry
+            # - update PID loops in each DAC from dacList
+
+
             ### Check the Command Queue ###
             if not self.qCmd.empty():
                 msg = await self.qCmd.get()
@@ -231,13 +239,16 @@ class CMDLoop:
 
                 for point in tmpCalData:
                     newPt = point.split(' ')
+                    newPt[0] = float(newPt[0])
+                    newPt[1] = float(newPt[1])
                     calData.append(newPt)
 
-                # convert calData[][0] points from sensor units to bits
+                # TODO: convert calData[][0] points from sensor units to bits
                 chebyshevFit = chebyFit(calData, 10)
                 self.cal[sensor]['coeffs'] = chebyshevFit.chebyFit[0]
                 self.cal[sensor]['zl'] = chebyshevFit.chebyFit[1]
                 self.cal[sensor]['zu'] = chebyshevFit.chebyFit[2]
+                retData = 'OK'
 
             elif cmd == 'htr_cur':
                 pass
@@ -315,8 +326,12 @@ class CMDLoop:
             elif cmd == 'lcs':
                 pass
 
-            elif cmd == 'sns_tmp':
-                pass
+            elif cmd == 'sns_temp':
+                sensor = str(p1)
+                sensor = sensor.split('.')[0]
+                sensorName = 'adc_ext_therm'+sensor+':'
+                temp = self.tlm[sensorName]
+                retData = f'sns_tmp{sensor}={temp!r}'
 
             elif cmd == 'htr_ena':
                 pass
