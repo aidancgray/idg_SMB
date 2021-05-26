@@ -1,3 +1,13 @@
+# TCPip.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# The TCP Server loop. It runs in parallel with the Command Handler and
+# Transmit loops. This loop accepts multiple simultaneous connections
+# and passes incoming data to the Command Queue, which is picked up by the
+# Command Handler.
+
 import logging
 import asyncio
 import sys

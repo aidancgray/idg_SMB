@@ -1,3 +1,8 @@
+# EEPROM.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
 # The EEPROM is a 24CW64X (64-Kbit) I2C device for storing data off the
 # microSD card, which is unreliable for many write-cycles.
 # 
@@ -56,6 +61,7 @@ class EEPROMError(IOError):
 class EEPROM():
 
     def __init__(self):
+        self.logger = logging.getLogger('smb')
         self.i2cBus = SMBus(BUS_ID)  # 1 = /dev/i2c-1
         self.i2cAddr = DEV_ID   # I2C address of EEPROM = 0x50
 

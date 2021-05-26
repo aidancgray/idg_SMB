@@ -1,15 +1,18 @@
 #!/usr/local/bin/python3.8
+# main.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# The main script for the Sensor Monitor / Temperature Control Board
 
 from EEPROM import EEPROM
 
 import logging
 import sys
-import time
-import RPi.GPIO as GPIO
 import asyncio
 import argparse
 import shlex
-#import spidev
 
 import GPIO_config
 import Gbl
@@ -20,6 +23,7 @@ from transmitter import Transmitter
 from BME280 import BME280
 from ADS1015 import ADS1015
 from hi_pwr_htr import hi_pwr_htr
+from AD7124 import AD7124
 
 def custom_except_hook(loop, context):
     if repr(context['exception']) == 'SystemExit()':
@@ -46,12 +50,22 @@ async def runSMB(logLevel=logging.INFO):
     dacList = []
     dac0 = DAC(0, io, 'PID')  # initialize DAC0
     dacList.append(dac0)
+    dac1 = DAC(1, io, 'PID')  # initialize DAC1
+    dacList.append(dac1)
+    dac2 = DAC(2, io, 'BB')  # initialize DAC2
+    dacList.append(dac2)
+    dac3 = DAC(3, io, 'BB')  # initialize DAC3
+    dacList.append(dac3)
 
-    tcpServer = TCPServer('', 9999)
-    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList)
-    transmitter = Transmitter(tcpServer.qXmit)
+    adcList = [AD7124(i, io) for i in range(12)]
+
+    readData = adcList[0].adc_read_data(5, 1)
+    print(f'ADC_ID={readData}')
+    # tcpServer = TCPServer('', 9999)
+    # cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
+    # transmitter = Transmitter(tcpServer.qXmit)
     
-    await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
+    # await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
 
 def main(argv=None):
     if argv is None:

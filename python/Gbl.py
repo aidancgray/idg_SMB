@@ -1,3 +1,10 @@
+# Gbl.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# Global dictionaries
+
 import numpy as np
 
 # Global Dictionary to hold shared TLM values

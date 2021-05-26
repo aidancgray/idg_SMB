@@ -1,3 +1,13 @@
+# cmdHandler.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# Command Handler loop. Runs in parallel with the TCP Server and
+# Transmit loops. It constantly monitors the Command Queue and 
+# acts upon new commands in the order they are received. It also
+# populates the Telemetry dictionary.
+
 import logging
 import asyncio
 from CMD_DICT import cmd_set_dict, cmd_get_dict
@@ -5,7 +15,7 @@ from LEG_CMD_DICT import leg_action_dict, leg_query_dict
 from chebyFit import chebyFit
 
 class CMDLoop:
-    def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList):
+    def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList):
         self.logger = logging.getLogger('smb')
         self.qCmd = qCmd
         self.qXmit = qXmit
@@ -17,6 +27,7 @@ class CMDLoop:
         self.ads1015 = ads1015
         self.hi_pwr_htrs = hi_pwr_htrs
         self.dacList = dacList
+        self.adcList = adcList
 
     async def start(self):
         while True:

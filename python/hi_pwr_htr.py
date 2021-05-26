@@ -1,5 +1,12 @@
+# hi_pwr_htr.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# High Power Heater class (Bang-Bang). 
+# Simple functionality: on/off/status
+
 import RPi.GPIO as GPIO
-import Gbl
 
 class hi_pwr_htr():
     def __init__(self, idx, io):

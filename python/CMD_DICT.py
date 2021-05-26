@@ -1,3 +1,10 @@
+# CMD_DICT.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# Dictionaries for set & get commands
+
 cmd_set_dict = {
         'id': {'P#': 1,
                 'P1_MIN': 0,

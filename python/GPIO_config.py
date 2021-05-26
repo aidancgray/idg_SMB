@@ -1,10 +1,15 @@
+# GPIO_config.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# Raspberry Pi's GPIO configuration and initialization.
+
 import atexit
 import logging
 import signal
 
 import RPi.GPIO as GPIO
-
-import Gbl
 
 def sigCleanup(signum, frame):
     logging.warn("caught signal %s", signum)
@@ -67,6 +72,21 @@ class io():
         # Set HI_PWR_EN2 to output.
         pin = self.pin_map['HI_PWR_EN2']
         GPIO.setup(pin, GPIO.OUT)
+
+        # Set SPI0_SCLK to output.
+        pin = self.pin_map['SPI0_SCLK']
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, 1)  # idle high
+
+        # Set SPI0_MOSI to output.
+        pin = self.pin_map['SPI0_MOSI']
+        GPIO.setup(pin, GPIO.OUT)
+        GPIO.output(pin, 0)  # normally low
+
+        # Set SPI0_MISO to input.
+        pin = self.pin_map['SPI0_MISO']
+        # GPIO.setup(pin, GPIO.IN)
+        GPIO.setup(pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
         # Set /ADC_SC0 to output.
         pin = self.pin_map['nADC_CS0']

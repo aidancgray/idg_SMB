@@ -1,5 +1,11 @@
+# DAC8775.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# Class for a DAC module. This board consists of four (4) DACs. 
+
 import RPi.GPIO as GPIO
-import time
 import logging
 
 class DACError(ValueError):
@@ -12,9 +18,10 @@ class DAC():
             raise DACError("Failed to initialize DAC. Index out of range.")
 
         self.idx = idx  # DAC address
-        self.io = io  # GPIO
-        self.logger = logging.getLogger('DAC-'+str(idx))
-        self.logger.setLevel(logging.INFO)
+        self.io = io    # GPIO
+        #self.logger = logging.getLogger('DAC-'+str(idx))
+        #self.logger.setLevel(logging.INFO)
+        self.logger = logging.getLogger('smb')
 
         # GPIO Pins
         self.mosi = self.io.pin_map['SPI1_MOSI']
@@ -53,13 +60,13 @@ class DAC():
             GPIO.output(self.ssa0, 1)  # set SSA0 to DAC1
         elif self.idx == 2:
             GPIO.output(self.ssa1, 1)  # set SSA1
-            GPIO.output(self.ssa0, 0)  # set SSA0 to DAC1
+            GPIO.output(self.ssa0, 0)  # set SSA0 to DAC2
         elif self.idx == 3:
             GPIO.output(self.ssa1, 1)  # set SSA1
-            GPIO.output(self.ssa0, 1)  # set SSA0 to DAC1
+            GPIO.output(self.ssa0, 1)  # set SSA0 to DAC3
         else:
             GPIO.output(self.ssa1, 1)  # set SSA1
-            GPIO.output(self.ssa0, 1)  # set SSA0 to DAC1
+            GPIO.output(self.ssa0, 1)  # set SSA0 to DAC3
 
     def dac_write_data(self, regAddr, data):
         """

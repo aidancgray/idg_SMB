@@ -1,3 +1,10 @@
+# LEG_CMD_DICT.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
+# Command Dictionaries for the Legacy software
+
 leg_action_dict = {
     'A': {  'P1_MIN': 0,
             'P1_MAX': 255,

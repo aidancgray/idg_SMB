@@ -1,6 +1,10 @@
+# ADS1015.py
+# 5/24/2021
+# Aidan Gray
+# aidan.gray@idg.jhu.edu
+#
 # The ADS1015 is a precision, low-power, 12-bit, I2C compatible
 # analog-to-digital converter.
-# 
 
 from smbus2 import SMBus, i2c_msg
 import time
@@ -9,8 +13,12 @@ import logging
 BUS_ID = 1
 DEV_ID = 0x48
 
+class ADS1015Error(IOError):
+    pass
+
 class ADS1015:
     def __init__(self):
+        self.logger = logging.getLogger('smb')
         self.i2cBus = SMBus(BUS_ID)
         self.i2cAddr = DEV_ID
         self.convAddr = 0x00
@@ -28,7 +36,7 @@ class ADS1015:
         """
 
         if len(data) > 2:
-            raise EEPROMError(f"Cannot write {len(data)} bytes. Max write size is 2 bytes.")
+            raise ADS1015Error(f"Cannot write {len(data)} bytes. Max write size is 2 bytes.")
 
         writeData = regAddr.to_bytes(1, byteorder = 'big') + data
         write = i2c_msg.write(self.i2cAddr, writeData)
