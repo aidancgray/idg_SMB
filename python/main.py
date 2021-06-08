@@ -13,6 +13,7 @@ import sys
 import asyncio
 import argparse
 import shlex
+import time
 
 import GPIO_config
 import Gbl
@@ -58,14 +59,64 @@ async def runSMB(logLevel=logging.INFO):
     dacList.append(dac3)
 
     adcList = [AD7124(i, io) for i in range(12)]
-
-    readData = adcList[0].adc_read_data(5, 1)
-    print(f'ADC_ID={readData}')
-    # tcpServer = TCPServer('', 9999)
-    # cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
-    # transmitter = Transmitter(tcpServer.qXmit)
     
-    # await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
+    # readData = adcList[0].adc_read_data(5, 1)
+    # print(f'ID={readData}')
+    
+    # readData = adcList[0].adc_read_data(0, 1)
+    # print(f'STATUS={readData}')
+    
+    # readData = adcList[0].adc_read_data(1, 2)
+    # print(f'ADC_CONTROL={readData}')
+    
+    # readData = adcList[0].adc_read_data(2, 3)
+    # print(f'DATA={readData}')
+
+    # readData = adcList[0].adc_read_data(3, 3)
+    # print(f'IO_CONTROL_1={readData}')
+
+    # readData = adcList[0].adc_read_data(4, 2)
+    # print(f'IO_CONTROL_2={readData}')
+    
+    # readData = adcList[0].adc_read_data(6, 3)
+    # print(f'ERROR={readData}')
+    
+    # readData = adcList[0].adc_read_data(7, 3)
+    # print(f'ERROR_EN={readData}')
+    
+    # readData = adcList[0].adc_read_data(8, 1)
+    # print(f'MCLK_COUNT={readData}')
+
+    ### CHANNEL Registers ###
+    # for i in range(16):
+    #     readData = adcList[0].adc_read_data(9+i, 2)
+    #     print(f'CHANNEL_{i}={readData}')
+
+    ### CONFIGURATION Registers ###
+    # for i in range(8):
+    #     readData = adcList[0].adc_read_data(25+i, 2)
+    #     print(f'CONFIG_{i}={readData}')
+
+    ### FILTER Registers ###
+    # for i in range(8):
+    #     readData = adcList[0].adc_read_data(33+i, 3)
+    #     print(f'FILTER_{i}={readData}')
+
+    ### OFFSET Registers ###
+    # for i in range(8):
+    #     readData = adcList[0].adc_read_data(41+i, 3)
+    #     print(f'OFFSET_{i}={readData}')
+
+    ### GAIN Registers ###
+    # for i in range(8):
+    #     readData = adcList[0].adc_read_data(49+i, 3)
+    #     print(f'GAIN_{i}={readData}')
+
+    tcpServer = TCPServer('', 9999)
+    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
+    transmitter = Transmitter(tcpServer.qXmit)
+    
+    await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
 
 def main(argv=None):
     if argv is None:

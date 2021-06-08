@@ -104,12 +104,12 @@ cmd_set_dict = {
                 'P2_MAX': None,
                 'DESC': 'Returns the given strings with \'#\' around the first and \'@\' around the second'},
 
-        'test_b': {'P#': 2,
-                'P1_MIN': 0,
-                'P1_MAX': 1,
-                'P2_MIN': 1,
-                'P2_MAX': 12,
-                'DESC': 'Checks that the args are between min and max'}        
+        'test_b': {'P#': 0,
+                'P1_MIN': None,
+                'P1_MAX': None,
+                'P2_MIN': None,
+                'P2_MAX': None,
+                'DESC': ''}        
 }
 
 cmd_get_dict = {

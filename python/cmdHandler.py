@@ -87,12 +87,15 @@ class CMDLoop:
                 retData = await self.parse_get_command(cmdStrList[1:])
 
             else:
-                retData = 'command failure: second arg must be \'set\' or \'get\''
+                retData = 'BAD,command failure: second arg must be \'set\' or \'get\''
                 self.logger.error(retData)
 
         else:
-            retData = 'command failure: must start with \'~\', \'?\', or \'$\''
+            retData = 'BAD,command failure: must start with \'~\', \'?\', or \'$\''
             self.logger.error(retData)
+
+        if 'BAD' not in retData and 'OK' not in retData:
+            retData = 'OK,'+retData
 
         return retData
 
@@ -106,7 +109,7 @@ class CMDLoop:
                     retData = await self.execute_set_command(cmd_dict, cmdStr[0], [None, None])
                     
                 else:
-                    retData = 'command failure: This command accepts no args'
+                    retData = 'BAD,command failure: This command accepts no args'
                     self.logger.error(retData)
 
             elif cmd_dict['P#'] == 1:
@@ -114,7 +117,7 @@ class CMDLoop:
                     retData = await self.execute_set_command(cmd_dict, cmdStr[0], [cmdStr[1], None])
 
                 else:
-                    retData = 'command failure: This command requires 1 arg'
+                    retData = 'BAD,command failure: This command requires 1 arg'
                     self.logger.error(retData)
 
             elif cmd_dict['P#'] == 2:
@@ -122,13 +125,13 @@ class CMDLoop:
                     retData = await self.execute_set_command(cmd_dict, cmdStr[0], cmdStr[1:3])
 
                 else:
-                    retData = 'command failure: This command requires 2 args'
+                    retData = 'BAD,command failure: This command requires 2 args'
                     self.logger.error(retData)
             else:
-                    retData = 'command dictionary failure: Command requires too many args'
+                    retData = 'BAD,command dictionary failure: Command requires too many args'
                     self.logger.error(retData)
         else:
-            retData = 'command failure: cmd arg invalid'
+            retData = 'BAD,command failure: cmd arg invalid'
             self.logger.error(retData)
         
         return retData
@@ -143,7 +146,7 @@ class CMDLoop:
                     retData = await self.execute_get_command(cmd_dict, cmdStr[0], [None])
 
                 else:
-                    retData = 'command failure: This command accepts no args'
+                    retData = 'BAD,command failure: This command accepts no args'
                     self.logger.error(retData)
 
             elif cmd_dict['P#'] == 1:
@@ -151,15 +154,15 @@ class CMDLoop:
                     retData = await self.execute_get_command(cmd_dict, cmdStr[0], cmdStr[1:2])
 
                 else:
-                    retData = 'command failure: This command requires 1 arg'
+                    retData = 'BAD,command failure: This command requires 1 arg'
                     self.logger.error(retData)
 
             else:
-                    retData = 'command dictionary failure: Command requires too many args'
+                    retData = 'BAD,command dictionary failure: Command requires too many args'
                     self.logger.error(retData)
 
         else:
-            retData = 'command failure: cmd arg invalid'
+            retData = 'BAD,command failure: cmd arg invalid'
             self.logger.error(retData)
 
         return retData
@@ -185,7 +188,7 @@ class CMDLoop:
             elif float(p1) >= p1min and float(p1) <= p1max:
                 p1 = float(p1)
             else:
-                retData = 'command failure: arg 1 out of range'
+                retData = 'BAD,command failure: arg 1 out of range'
                 self.logger.error(retData)
                 return retData
 
@@ -199,7 +202,7 @@ class CMDLoop:
             elif float(p2) >= p2min and float(p2) <= p2max:
                 p1 = float(p1)
             else:
-                retData = 'command failure: arg 2 out of range'
+                retData = 'BAD,command failure: arg 2 out of range'
                 self.logger.error(retData)
                 return retData
 
@@ -275,17 +278,18 @@ class CMDLoop:
                 retData = '#'+p1+'#'+'@'+p2+'@'
 
             elif cmd == 'test_b':
+                await asyncio.sleep(10)
                 retData = 'Valid'
 
             else:
-                retData = f'command failure: unknown command {cmd!r}'
+                retData = f'BAD,command failure: unknown command {cmd!r}'
                 self.logger.error(retData)
                 return retData
 
             return retData
         
         except (TypeError, ValueError):
-            retData = 'command failure: expected args float or int'
+            retData = 'BAD,command failure: expected args float or int'
             self.logger.error(retData)
             return retData
         
@@ -308,7 +312,7 @@ class CMDLoop:
             elif float(p1) >= p1min and float(p1) <= p1max:
                 p1 = float(p1)
             else:
-                retData = 'command failure: args out of range'
+                retData = 'BAD,command failure: args out of range'
                 self.logger.error(retData)
                 return retData
 
@@ -329,7 +333,7 @@ class CMDLoop:
                 elif retData == 1:
                     retData = 'on'
                 else:
-                    retData = 'GPIO read error'
+                    retData = 'BAD,GPIO read error'
 
             elif cmd == 'pid_i':
                 pass
@@ -368,7 +372,7 @@ class CMDLoop:
                 elif p1 == 2:
                     retData = 'htr_current2='+str(self.tlm['htr_current2'])
                 else:
-                    retData = f'command failure: unknown arg {p1!r}'
+                    retData = f'BAD,command failure: unknown arg {p1!r}'
 
             elif cmd == 'setpoint':
                 pass
@@ -387,7 +391,7 @@ class CMDLoop:
                 elif p1 == 'all':
                     retData = 'temp='+str(self.tlm['env_temp'])+'C,press='+str(self.tlm['env_press'])+'Pa,hum='+str(self.tlm['env_hum'])+'%'
                 else:
-                    retData = f'command failure: unknown arg {p1!r}'
+                    retData = f'BAD,command failure: unknown arg {p1!r}'
             
             # just a couple test functions
             elif cmd == 'test_a':
@@ -397,7 +401,7 @@ class CMDLoop:
                 retData = 'Valid'
 
             else:
-                retData = f'command failure: unknown command {cmd!r}'
+                retData = f'BAD,command failure: unknown command {cmd!r}'
                 self.logger.error(retData)
                 return retData
 
@@ -405,7 +409,7 @@ class CMDLoop:
 
         except TypeError as e1:
             #print(e1)
-            retData = 'command failure: expected args float or int'
+            retData = 'BAD,command failure: expected args float or int'
             self.logger.error(retData)
             return retData
 

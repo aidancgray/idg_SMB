@@ -1,5 +1,5 @@
 # TCPip.py
-# 5/24/2021
+# 6/8/2021
 # Aidan Gray
 # aidan.gray@idg.jhu.edu
 #
@@ -11,6 +11,7 @@
 import logging
 import asyncio
 import sys
+from asyncio.exceptions import IncompleteReadError
 
 class TCPServer():
     def __init__(self, hostname, port):
@@ -22,7 +23,7 @@ class TCPServer():
     
     async def start(self):
         server = await asyncio.start_server(
-            client_connected_cb=self.handle_client, 
+            client_connected_cb=self.cmd_loop, 
             host=self.hostname, 
             port=self.port)
         addr = server.sockets[0].getsockname()
@@ -34,9 +35,6 @@ class TCPServer():
     def stopped(self):
         self.logger.info('Server Stopped')
 
-    async def handle_client(self, reader, writer):
-        await self.cmd_loop(reader, writer)
-
     async def cmd_loop(self, reader, writer):
         request = None
         cmdLoopCheck = True
@@ -45,26 +43,36 @@ class TCPServer():
                 
         while cmdLoopCheck:        
             try:
-                data = await reader.readuntil(separator=b'\n')
-                message = data.decode()
-                self.logger.info(f'received: {message!r} from {addr!r}')
-                
-                if message.lower() == 'q\r\n':
+                if writer.is_closing():
                     cmdLoopCheck = False
-                    asyncio.create_task(self.enqueue_xmit((writer, 'closing connection...\n')))
-                    await asyncio.sleep(0.1)
-                elif message.lower() == 'exit\r\n':
-                    sys.exit()
                 else:
-                    asyncio.create_task(self.enqueue_cmd((writer, message)))
-                    await writer.drain()
+                    data = await reader.readuntil(separator=b'\n')
+                    message = data.decode()
+                    self.logger.info(f'received: {message!r} from {addr!r}')
+                    
+                    if message.lower() == 'q\r\n':
+                        cmdLoopCheck = False
+                        asyncio.create_task(self.enqueue_xmit((writer, 'closing connection...\n')))
+                        await asyncio.sleep(0.001)
+                    elif message.lower() == 'exit\r\n':
+                        sys.exit()
+                    else:
+                        asyncio.create_task(self.enqueue_cmd((writer, message)))
+                        await writer.drain()
+
+            except IncompleteReadError as e3:
+                self.logger.error(f'Warning: peer disconnected')
+                cmdLoopCheck = False
+                await writer.drain()
+                writer.close()
 
             except Exception as e2:
-                self.logger.error('Unexpected error: ', e2)
+                self.logger.error(f'Unexpected error: {e2}')
                 await writer.drain()
-        
-        await writer.drain()
-        writer.close()
+
+        if not writer.is_closing():
+            await writer.drain()
+            writer.close()
 
     async def enqueue_cmd(self, message):
         await self.qCmd.put(message)

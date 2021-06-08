@@ -7,6 +7,9 @@
 
 import RPi.GPIO as GPIO
 import logging
+import time
+
+DELAY = 0.00000000004
 
 class AD7124Error(ValueError):
     pass
@@ -26,6 +29,18 @@ class AD7124:
         self.miso = self.io.pin_map['SPI0_MISO']
         self.sclk = self.io.pin_map['SPI0_SCLK']
         self.sync = self.io.pin_map['nADC_SYNC']
+
+    def reset(self):
+        data2 = 65535
+        data3 = 16777215
+
+        # Write 64 1's in a row to reset the AD7124
+        self.adc_xmit_data(0, 0, data3, 3)
+        self.adc_xmit_data(0, 0, data3, 3)
+        self.adc_xmit_data(0, 0, data2, 2)
+
+        GPIO.output(self.sync, 1)  # SYNC(CS) HIGH
+        time.sleep(DELAY)
 
     def adc_xmit_data(self, readWrite, regAddr, data, dataSize):
         """
@@ -57,6 +72,8 @@ class AD7124:
             for byte in writeByteArray:
                 self.__adc_write_byte(byte) 
             
+            GPIO.output(self.sclk, 1)  # set clock high
+        
         else:
             raise AD7124Error('Max write size = 24bits, Min write size = 8bits.')
 
@@ -67,16 +84,14 @@ class AD7124:
         Input:
         - writeByte: 1 byte
         """
-
-        GPIO.output(self.sclk, 0)  # set clock low
         
-        for i in range(8):         
+        for i in range(8):
+            GPIO.output(self.sclk, 0)  # set clock low         
             if writeByte & 2**(7-i):
                 GPIO.output(self.mosi, 1)
             else:
                 GPIO.output(self.mosi, 0)
-        
-        GPIO.output(self.sclk, 1)  # Clock high
+            GPIO.output(self.sclk, 1)  # Clock high
 
     def adc_write_data(self, regAddr, data, dataSize):
         """
@@ -93,6 +108,7 @@ class AD7124:
 
         self.adc_xmit_data(0, regAddr, data, dataSize)
         GPIO.output(self.sync, 1)  # SYNC(CS) HIGH
+        time.sleep(DELAY)
 
     def __adc_read_byte(self):
         """
@@ -103,16 +119,17 @@ class AD7124:
         """
         readByte = 0
 
-        GPIO.output(self.sclk, 0)  # set clock low
+        GPIO.output(self.sclk, 1)  # set clock high
         
         for i in range(8):         
-            GPIO.output(self.sclk, 1)  # Clock high
-            bitVal = GPIO.input(self.miso)
             GPIO.output(self.sclk, 0)  # Clock low
+            bitVal = GPIO.input(self.miso)
+            print(bitVal, end='')
+            GPIO.output(self.sclk, 1)  # Clock high
             
             if bitVal == 1:
                 readByte = readByte | 2**(7-i)
-        
+        print()
         GPIO.output(self.sclk, 1)  # Clock high
         
         return readByte
@@ -140,6 +157,7 @@ class AD7124:
             returnBytes.append(readByte)
         
         GPIO.output(self.sync, 1)  # SYNC (CS) HIGH
+        time.sleep(DELAY)
 
         # convert bytearray to int
         returnData = int.from_bytes(returnBytes, byteorder = 'big')
