@@ -17,7 +17,8 @@ class ADS1015Error(IOError):
     pass
 
 class ADS1015:
-    def __init__(self):
+    def __init__(self, eeprom):
+        self.eeprom = eeprom
         self.logger = logging.getLogger('smb')
         self.i2cBus = SMBus(BUS_ID)
         self.i2cAddr = DEV_ID

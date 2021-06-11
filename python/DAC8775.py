@@ -13,14 +13,13 @@ class DACError(ValueError):
 
 class DAC():
 
-    def __init__(self, idx, io, mode):
+    def __init__(self, idx, io, eeprom, mode):
         if idx < 0 or idx > 3:
             raise DACError("Failed to initialize DAC. Index out of range.")
 
         self.idx = idx  # DAC address
         self.io = io    # GPIO
-        #self.logger = logging.getLogger('DAC-'+str(idx))
-        #self.logger.setLevel(logging.INFO)
+        self.eeprom = eeprom
         self.logger = logging.getLogger('smb')
 
         # GPIO Pins

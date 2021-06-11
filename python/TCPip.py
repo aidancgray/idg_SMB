@@ -30,7 +30,7 @@ class TCPServer():
         self.logger.info('listening on: %s', addr)
 
         async with server:
-            await asyncio.gather(server.serve_forever())
+            await server.serve_forever()
 
     def stopped(self):
         self.logger.info('Server Stopped')

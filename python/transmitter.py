@@ -23,5 +23,6 @@ class Transmitter:
                 addr = writer.get_extra_info('peername')
                 self.logger.info(f'sending: {msg!r} to {addr!r}')
                 writer.write(msg.encode())
+                await writer.drain()
             else:
                 self.logger.error(f'Warning: peer disconnected')

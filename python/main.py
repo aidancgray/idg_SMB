@@ -44,74 +44,47 @@ async def runSMB(logLevel=logging.INFO):
     cal = Gbl.sensor_cal # Sensor Calibration dictionary
     io = GPIO_config.io()  # GPIO pin configuration
 
-    bme280 = BME280()  # Onboard Temperature, Pressure, and Humidity Sensor
-    ads1015 = ADS1015()  # ADS1015
-    hi_pwr_htrs = [hi_pwr_htr(i, io) for i in range(2)]
+    bme280 = BME280(eeprom)  # Onboard Temperature, Pressure, and Humidity Sensor
+    ads1015 = ADS1015(eeprom)  # ADS1015
+    hi_pwr_htrs = [hi_pwr_htr(i, io, eeprom) for i in range(2)]
 
     dacList = []
-    dac0 = DAC(0, io, 'PID')  # initialize DAC0
+    dac0 = DAC(0, io, eeprom, 'PID')  # initialize DAC0
     dacList.append(dac0)
-    dac1 = DAC(1, io, 'PID')  # initialize DAC1
+    dac1 = DAC(1, io, eeprom, 'PID')  # initialize DAC1
     dacList.append(dac1)
-    dac2 = DAC(2, io, 'BB')  # initialize DAC2
+    dac2 = DAC(2, io, eeprom, 'BB')  # initialize DAC2
     dacList.append(dac2)
-    dac3 = DAC(3, io, 'BB')  # initialize DAC3
+    dac3 = DAC(3, io, eeprom, 'BB')  # initialize DAC3
     dacList.append(dac3)
 
-    adcList = [AD7124(i, io) for i in range(12)]
-    
-    # readData = adcList[0].adc_read_data(5, 1)
-    # print(f'ID={readData}')
-    
-    # readData = adcList[0].adc_read_data(0, 1)
-    # print(f'STATUS={readData}')
-    
-    # readData = adcList[0].adc_read_data(1, 2)
-    # print(f'ADC_CONTROL={readData}')
-    
-    # readData = adcList[0].adc_read_data(2, 3)
-    # print(f'DATA={readData}')
+    adcList = [AD7124(i, io, eeprom) for i in range(12)]
 
-    # readData = adcList[0].adc_read_data(3, 3)
-    # print(f'IO_CONTROL_1={readData}')
+    # print(f'STATUS={"{0:08b}".format(adcList[n].get_STATUS())}')
+    # print(f'ADC_CONTROL={"{0:016b}".format(adcList[n].get_ADC_CONTROL())}')
+    # print(f'DATA={"{0:024b}".format(adcList[n].get_DATA())}')
+    # print(f'IO_CONTROL_1={"{0:024b}".format(adcList[n].get_IO_CONTROL_1())}')
+    # print(f'IO_CONTROL_2={"{0:026b}".format(adcList[n].get_IO_CONTROL_2())}')
+    # print(f'ID={"{0:08b}".format(adcList[n].get_ID())}')
+    # print(f'ERROR={"{0:024b}".format(adcList[n].get_ERROR())}')
+    # print(f'ERROR_EN={"{0:024b}".format(adcList[n].get_ERROR_EN())}')
+    # print(f'MCLK_COUNT={"{0:08b}".format(adcList[n].get_MCLK_COUNT())}')
+    # print(f'CHANNEL_0={"{0:016b}".format(adcList[n].get_CHANNEL_0())}')
+    # print(f'CHANNEL_1={"{0:016b}".format(adcList[n].get_CHANNEL_1())}')
+    # print(f'CONFIG_0={"{0:016b}".format(adcList[n].get_CONFIG_0())}')
+    # print(f'CONFIG_1={"{0:016b}".format(adcList[n].get_CONFIG_1())}')
+    # print(f'FILTER_0={"{0:024b}".format(adcList[n].get_FILTER_0())}')
+    # print(f'FILTER_1={"{0:024b}".format(adcList[n].get_FILTER_1())}')
+    # print(f'OFFSET_0={"{0:024b}".format(adcList[n].get_OFFSET_0())}')
+    # print(f'OFFSET_1={"{0:024b}".format(adcList[n].get_OFFSET_1())}')
+    # print(f'GAIN_0={"{0:024b}".format(adcList[n].get_GAIN_0())}')
+    # print(f'GAIN_1={"{0:024b}".format(adcList[n].get_GAIN_1())}')
+    # print(f'STATUS={"{0:08b}".format(adcList[n].get_STATUS())}')
 
-    # readData = adcList[0].adc_read_data(4, 2)
-    # print(f'IO_CONTROL_2={readData}')
-    
-    # readData = adcList[0].adc_read_data(6, 3)
-    # print(f'ERROR={readData}')
-    
-    # readData = adcList[0].adc_read_data(7, 3)
-    # print(f'ERROR_EN={readData}')
-    
-    # readData = adcList[0].adc_read_data(8, 1)
-    # print(f'MCLK_COUNT={readData}')
-
-    ### CHANNEL Registers ###
-    # for i in range(16):
-    #     readData = adcList[0].adc_read_data(9+i, 2)
-    #     print(f'CHANNEL_{i}={readData}')
-
-    ### CONFIGURATION Registers ###
-    # for i in range(8):
-    #     readData = adcList[0].adc_read_data(25+i, 2)
-    #     print(f'CONFIG_{i}={readData}')
-
-    ### FILTER Registers ###
-    # for i in range(8):
-    #     readData = adcList[0].adc_read_data(33+i, 3)
-    #     print(f'FILTER_{i}={readData}')
-
-    ### OFFSET Registers ###
-    # for i in range(8):
-    #     readData = adcList[0].adc_read_data(41+i, 3)
-    #     print(f'OFFSET_{i}={readData}')
-
-    ### GAIN Registers ###
-    # for i in range(8):
-    #     readData = adcList[0].adc_read_data(49+i, 3)
-    #     print(f'GAIN_{i}={readData}')
-
+    while True:
+        for n in range(len(adcList)):
+            print(f'DATA_{n+1}={adcList[n].get_DATA()}')
+        time.sleep(1)
     tcpServer = TCPServer('', 9999)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
     transmitter = Transmitter(tcpServer.qXmit)

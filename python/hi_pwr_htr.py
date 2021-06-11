@@ -9,9 +9,10 @@
 import RPi.GPIO as GPIO
 
 class hi_pwr_htr():
-    def __init__(self, idx, io):
+    def __init__(self, idx, io, eeprom):
         self.idx = idx
         self.io = io
+        self.eeprom = eeprom
         self.hi_pwr_en_pin = 0
 
         if self.idx == 0:

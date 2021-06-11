@@ -38,20 +38,20 @@ DEFAULT_DAC_DATA = b'\x00\x00' \
                    b'\x00\x00' \
                    b'\x00\x00'
 
-DEFAULT_ADC_DATA = b'\x00' \
-                   b'\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00\x00' \
-                   b'\x00\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00\x00' \
-                   b'\x00\x00\x00' \
-                   b'\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00\x00' \
-                   b'\x00\x00\x00' \
-                   b'\x00\x00\x00'
+DEFAULT_ADC_DATA =  b'\x00\x00' \
+                    b'\x00\x00\x00' \
+                    b'\x00\x00' \
+                    b'\x00\x00\x00' \
+                    b'\x00\x00' \
+                    b'\x00\x00' \
+                    b'\x00\x00' \
+                    b'\x00\x00' \
+                    b'\x00\x00\x00' \
+                    b'\x00\x00\x00' \
+                    b'\x00\x00\x00' \
+                    b'\x00\x00\x00' \
+                    b'\x00\x00\x00' \
+                    b'\x00\x00\x00'
 
 
 class EEPROMError(IOError):
@@ -67,29 +67,35 @@ class EEPROM():
 
         #EEProm memory map
         # DAC byte addresses
+        self.DACmem = []
         self.DACaddr = []
         for i in range(4):
             self.DACaddr.append(0x20 * i)
 
         # ADC byte addresses
+        self.ADCmem = []
         self.ADCaddr = []
         for i in range(8):
-            self.ADCaddr.append(0x0100 + 0x20 * i)
+            self.ADCaddr.append(0x0100 + 0x24 * i)
         for i in range(4):
-            self.ADCaddr.append(0x0200 + 0x20 * i)
+            self.ADCaddr.append(0x0220 + 0x24 * i)
 
         # ADS1015 byte addresses
+        self.ADS1015mem = 0
         self.ADS1015addr = 0x0300
 
         # BME280 byte addresses
+        self.BME280mem = 0
         self.BME280addr = 0x0320
 
         # PID Heaters byte addresses
+        self.PIDmem = []
         self.PIDaddr = []
         for i in range(4):
             self.PIDaddr.append(0x0400 + 0x20 * i)
 
         # Bang-Bang Heaters byte addresses
+        self.BBmem = []
         self.BBaddr = []
         for i in range(2):
             self.BBaddr.append(0x0480 + 0x20 * i)
@@ -100,11 +106,13 @@ class EEPROM():
 
             if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
                 raise EEPROMError("Failed to initialize eeprom to default values")    
+        
+        self.readout_eeprom()
 
     def _initialize_eeprom(self):
         """
         Set the default values of the eeprom. This is only done when
-        the EEPROM_LOADED_VAL is set.
+        the EEPROM_LOADED_VAL is not set.
         """
         # Write default values to DAC0-3
         for DAC in self.DACaddr:
@@ -165,3 +173,24 @@ class EEPROM():
             returnBytes.append(value)
 
         return returnBytes
+
+    def readout_eeprom(self):
+        """
+        Read out all contents of the EEPROM according to the memory map
+        and stuff the data into the appropriate memory lists.
+        """
+
+        for n in range(len(self.DACaddr)):
+            self.DACmem.append(self.read(self.DACaddr[n], 32))
+
+        for n in range(len(self.ADCaddr)):
+            self.ADCmem.append(self.read(self.ADCaddr[n], 36))
+
+        self.ADS1015mem = self.read(self.ADS1015addr, 32)
+        self.BME280mem = self.read(self.BME280addr, 32)
+        
+        for n in range(len(self.PIDaddr)):
+            self.PIDmem.append(self.read(self.PIDaddr[n], 32))
+
+        for n in range(len(self.BBaddr)):
+            self.BBmem.append(self.read(self.BBaddr[n], 32))

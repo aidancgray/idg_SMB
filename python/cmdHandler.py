@@ -53,10 +53,14 @@ class CMDLoop:
 
             ### Temperature Sensor ###
             # TODO: 
-            # - get sensor readings
+            # + get sensor readings 
             # - convert readings using chebyFits
             # - update telemetry
             # - update PID loops in each DAC from dacList
+            
+            for n in range(len(self.adcList)):
+                temp = self.adcList[n].get_DATA()
+                self.tlm['adc_int_temp'+str(n+1)] = temp
 
 
             ### Check the Command Queue ###
@@ -344,9 +348,9 @@ class CMDLoop:
             elif cmd == 'sns_temp':
                 sensor = str(p1)
                 sensor = sensor.split('.')[0]
-                sensorName = 'adc_ext_therm'+sensor+':'
+                sensorName = 'adc_int_temp'+sensor
                 temp = self.tlm[sensorName]
-                retData = f'sns_tmp{sensor}={temp!r}'
+                retData = f'sns_temp{sensor}={temp!r}'
 
             elif cmd == 'htr_ena':
                 pass
@@ -395,7 +399,7 @@ class CMDLoop:
             
             # just a couple test functions
             elif cmd == 'test_a':
-                retData = '#'+p1+'#'
+                retData = self.adcList[p1+1].get_STATUS()
 
             elif cmd == 'test_b':
                 retData = 'Valid'
