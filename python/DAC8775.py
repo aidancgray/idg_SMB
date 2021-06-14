@@ -258,8 +258,8 @@ class DAC():
         return self.__setPoint
 
     def __set_setPoint(self, var):
-        if var < 0:
-            raise ValueError("Invalid setpoint.")
+        # if var < 0:
+        #     raise ValueError("Invalid setpoint.")
         self.__setPoint = var
 
     def __get_etPrev(self):

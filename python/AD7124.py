@@ -210,6 +210,7 @@ class AD7124:
     def __reset_conversion_mode(self):
         self.__adc_write_data(self.AD7124_reg_dict['ADC_CONTROL'][0], self.AD7124_reg_dict['ADC_CONTROL'][1], self.AD7124_reg_dict['ADC_CONTROL'][2])
 
+    ### GETTERS ###
     def get_STATUS(self):
         return self.__adc_read_data(0x00, 1)
 
@@ -268,3 +269,84 @@ class AD7124:
 
     def get_GAIN_1(self):
         return self.__adc_read_data(0x32, 3)
+
+    def get_excitation_current(self):
+        io_control_1 = self.get_IO_CONTROL_1()
+        return io_control_1 >> 11 & 0b111
+
+    ### SETTERS ###
+    def set_ADC_CONTROL(self, data):
+        self.__adc_write_data(0x01, data, 2)
+    
+    def set_IO_CONTROL_1(self, data):
+        self.__adc_write_data(0x03, data, 3)
+    
+    def set_IO_CONTROL_2(self, data):
+        self.__adc_write_data(0x04, data, 2)
+
+    def set_ERROR_EN(self, data):
+        self.__adc_write_data(0x07, data, 3)
+
+    def set_CHANNEL_0(self, data):
+        self.__adc_write_data(0x09, data, 2)
+
+    def set_CHANNEL_0(self, data):
+        self.__adc_write_data(0x0A, data, 2)
+
+    def set_CONFIG_0(self, data):
+        self.__adc_write_data(0x19, data, 2)
+
+    def set_CONFIG_1(self, data):
+        self.__adc_write_data(0x1A, data, 2)
+
+    def set_FILTER_0(self, data):
+        self.__adc_write_data(0x21, data, 3)
+    
+    def set_FILTER_1(self, data):
+        self.__adc_write_data(0x22, data, 3)
+
+    def set_OFFSET_0(self, data):
+        self.__adc_write_data(0x29, data, 3)
+
+    def set_OFFSET_1(self, data):
+        self.__adc_write_data(0x2A, data, 3)
+
+    def set_GAIN_0(self, data):
+        self.__adc_write_data(0x31, data, 3)
+
+    def set_GAIN_1(self, data):
+        self.__adc_write_data(0x32, data, 3)
+
+    def set_excitation_current(self, val):
+        io_control_1 = self.get_IO_CONTROL_1()
+        
+        if val == 0:
+            io_control_1 &=~ (1<<11)
+            io_control_1 &=~ (1<<12)
+            io_control_1 &=~ (1<<13)
+        elif val == 1:
+            io_control_1 |= (1<<11)
+            io_control_1 &=~ (1<<12)
+            io_control_1 &=~ (1<<13)
+        elif val == 2:
+            io_control_1 &=~ (1<<11)
+            io_control_1 |= (1<<12)
+            io_control_1 &=~ (1<<13)
+        elif val == 3:
+            io_control_1 |= (1<<11)
+            io_control_1 |= (1<<12)
+            io_control_1 &=~ (1<<13)
+        elif val == 4:
+            io_control_1 &=~ (1<<11)
+            io_control_1 &=~ (1<<12)
+            io_control_1 |= (1<<13)
+        elif val == 5:
+            io_control_1 |= (1<<11)
+            io_control_1 &=~ (1<<12)
+            io_control_1 |= (1<<13)
+        elif val == 6 or val == 7:
+            io_control_1 |= (1<<11)
+            io_control_1 |= (1<<12)
+            io_control_1 |= (1<<13)
+        
+        self.set_IO_CONTROL_1(io_control_1)

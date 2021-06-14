@@ -10,6 +10,7 @@
 
 import logging
 import asyncio
+import time
 from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
 from chebyFit import chebyFit
@@ -30,7 +31,12 @@ class CMDLoop:
         self.adcList = adcList
 
     async def start(self):
+        lastTime = 0
         while True:
+            newTime = time.perf_counter()
+            if lastTime == 0:
+                tempTime = newTime - 1
+
             ### Get BME280 environment data ###
             self.tlm['env_temp'] = self.bme280.get_temperature()
             self.tlm['env_press'] = self.bme280.get_pressure()
@@ -55,12 +61,15 @@ class CMDLoop:
             # TODO: 
             # + get sensor readings 
             # - convert readings using chebyFits
-            # - update telemetry
+            # + update telemetry
             # - update PID loops in each DAC from dacList
             
-            for n in range(len(self.adcList)):
-                temp = self.adcList[n].get_DATA()
-                self.tlm['adc_int_temp'+str(n+1)] = temp
+            # Update temperature values every 1 second
+            if newTime - tempTime >= 1:
+                for n in range(len(self.adcList)):
+                    temp = self.adcList[n].get_DATA()
+                    self.tlm['adc_int_temp'+str(n+1)] = temp
+                tempTime = time.perf_counter()
 
 
             ### Check the Command Queue ###
@@ -71,6 +80,7 @@ class CMDLoop:
                 retData = await self.parse_raw_command(cmd)
                 await self.enqueue_xmit((writer, retData+'\n'))
 
+            lastTime = newTime
             await asyncio.sleep(0.000001)
 
     async def parse_raw_command(self, rawCmd):
@@ -200,11 +210,11 @@ class CMDLoop:
             if p2min == None and p2max == None:
                 pass
             elif p2min == None and float(p2) <= p2max:
-                p1 = float(p1)
+                p2 = float(p2)
             elif p2max == None and float(p2) >= p2min:
-                p1 = float(p1)
+                p2 = float(p2)
             elif float(p2) >= p2min and float(p2) <= p2max:
-                p1 = float(p1)
+                p2 = float(p2)
             else:
                 retData = 'BAD,command failure: arg 2 out of range'
                 self.logger.error(retData)
@@ -217,7 +227,9 @@ class CMDLoop:
                 retData = 'OK'
             
             elif cmd == 'pid_d':
-                pass
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].kd = p2
+                retData = 'OK'
 
             elif cmd == 'rst':
                 pass
@@ -230,7 +242,9 @@ class CMDLoop:
                 retData = 'OK'
 
             elif cmd == 'pid_i':
-                pass
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].ki = p2
+                retData = 'OK'
 
             elif cmd == 'lcs':
                 pass
@@ -239,7 +253,9 @@ class CMDLoop:
                 pass
 
             elif cmd == 'pid_p':
-                pass
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].kp = p2
+                retData = 'OK'
 
             elif cmd == 'adc_filt':
                 pass
@@ -272,18 +288,14 @@ class CMDLoop:
                 pass
 
             elif cmd == 'setpoint':
-                pass
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].setPoint = p2
+                retData = 'OK'
 
             elif cmd == 'excit':
-                pass
-
-            # just a couple test functions
-            elif cmd == 'test_a':
-                retData = '#'+p1+'#'+'@'+p2+'@'
-
-            elif cmd == 'test_b':
-                await asyncio.sleep(10)
-                retData = 'Valid'
+                intP1 = int(p1 - 1)
+                self.adcList[intP1].set_excitation_current(p2)
+                retData = 'OK'
 
             else:
                 retData = f'BAD,command failure: unknown command {cmd!r}'
@@ -327,7 +339,9 @@ class CMDLoop:
                 retData = f'id={board_id!r}'
             
             elif cmd == 'pid_d':
-                pass
+                intP1 = int(p1 - 1)
+                pid_d = self.dacList[intP1].kd
+                retData = f'pid_d={pid_d!r}'
 
             elif cmd == 'hi_pwr':
                 retData = self.hi_pwr_htrs[int(p1)-1].status()
@@ -340,7 +354,9 @@ class CMDLoop:
                     retData = 'BAD,GPIO read error'
 
             elif cmd == 'pid_i':
-                pass
+                intP1 = int(p1 - 1)
+                pid_i = self.dacList[intP1].ki
+                retData = f'pid_i={pid_i!r}'
 
             elif cmd == 'lcs':
                 pass
@@ -359,7 +375,9 @@ class CMDLoop:
                 pass
 
             elif cmd == 'pid_p':
-                pass
+                intP1 = int(p1 - 1)
+                pid_p = self.dacList[intP1].kp
+                retData = f'pid_p={pid_p!r}'
 
             elif cmd == 'adc_filt':
                 pass
@@ -379,10 +397,13 @@ class CMDLoop:
                     retData = f'BAD,command failure: unknown arg {p1!r}'
 
             elif cmd == 'setpoint':
-                pass
+                intP1 = int(p1 - 1)
+                setpoint = self.dacList[intP1].setPoint
+                retData = f'setpoint={setpoint!r}'
 
             elif cmd == 'excit':
-                pass
+                intP1 = int(p1 - 1)
+                retData = f'excit={self.adcList[intP1].get_excitation_current()}'
             
             # Get BME280 data
             elif cmd == 'env':
@@ -396,13 +417,6 @@ class CMDLoop:
                     retData = 'temp='+str(self.tlm['env_temp'])+'C,press='+str(self.tlm['env_press'])+'Pa,hum='+str(self.tlm['env_hum'])+'%'
                 else:
                     retData = f'BAD,command failure: unknown arg {p1!r}'
-            
-            # just a couple test functions
-            elif cmd == 'test_a':
-                retData = self.adcList[p1+1].get_STATUS()
-
-            elif cmd == 'test_b':
-                retData = 'Valid'
 
             else:
                 retData = f'BAD,command failure: unknown command {cmd!r}'
@@ -412,7 +426,7 @@ class CMDLoop:
             return retData
 
         except TypeError as e1:
-            #print(e1)
+            print(e1)
             retData = 'BAD,command failure: expected args float or int'
             self.logger.error(retData)
             return retData

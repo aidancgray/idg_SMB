@@ -61,30 +61,7 @@ async def runSMB(logLevel=logging.INFO):
     adcList = [AD7124(i, io, eeprom) for i in range(12)]
 
     # print(f'STATUS={"{0:08b}".format(adcList[n].get_STATUS())}')
-    # print(f'ADC_CONTROL={"{0:016b}".format(adcList[n].get_ADC_CONTROL())}')
-    # print(f'DATA={"{0:024b}".format(adcList[n].get_DATA())}')
-    # print(f'IO_CONTROL_1={"{0:024b}".format(adcList[n].get_IO_CONTROL_1())}')
-    # print(f'IO_CONTROL_2={"{0:026b}".format(adcList[n].get_IO_CONTROL_2())}')
-    # print(f'ID={"{0:08b}".format(adcList[n].get_ID())}')
-    # print(f'ERROR={"{0:024b}".format(adcList[n].get_ERROR())}')
-    # print(f'ERROR_EN={"{0:024b}".format(adcList[n].get_ERROR_EN())}')
-    # print(f'MCLK_COUNT={"{0:08b}".format(adcList[n].get_MCLK_COUNT())}')
-    # print(f'CHANNEL_0={"{0:016b}".format(adcList[n].get_CHANNEL_0())}')
-    # print(f'CHANNEL_1={"{0:016b}".format(adcList[n].get_CHANNEL_1())}')
-    # print(f'CONFIG_0={"{0:016b}".format(adcList[n].get_CONFIG_0())}')
-    # print(f'CONFIG_1={"{0:016b}".format(adcList[n].get_CONFIG_1())}')
-    # print(f'FILTER_0={"{0:024b}".format(adcList[n].get_FILTER_0())}')
-    # print(f'FILTER_1={"{0:024b}".format(adcList[n].get_FILTER_1())}')
-    # print(f'OFFSET_0={"{0:024b}".format(adcList[n].get_OFFSET_0())}')
-    # print(f'OFFSET_1={"{0:024b}".format(adcList[n].get_OFFSET_1())}')
-    # print(f'GAIN_0={"{0:024b}".format(adcList[n].get_GAIN_0())}')
-    # print(f'GAIN_1={"{0:024b}".format(adcList[n].get_GAIN_1())}')
-    # print(f'STATUS={"{0:08b}".format(adcList[n].get_STATUS())}')
 
-    while True:
-        for n in range(len(adcList)):
-            print(f'DATA_{n+1}={adcList[n].get_DATA()}')
-        time.sleep(1)
     tcpServer = TCPServer('', 9999)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
     transmitter = Transmitter(tcpServer.qXmit)

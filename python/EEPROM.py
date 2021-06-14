@@ -180,17 +180,53 @@ class EEPROM():
         and stuff the data into the appropriate memory lists.
         """
 
+        # DACs
         for n in range(len(self.DACaddr)):
             self.DACmem.append(self.read(self.DACaddr[n], 32))
 
+        # AD7124s
         for n in range(len(self.ADCaddr)):
             self.ADCmem.append(self.read(self.ADCaddr[n], 36))
-
+            
+        # ADS1015
         self.ADS1015mem = self.read(self.ADS1015addr, 32)
+        
+        # BME280
         self.BME280mem = self.read(self.BME280addr, 32)
         
+        # PID Heaters
         for n in range(len(self.PIDaddr)):
             self.PIDmem.append(self.read(self.PIDaddr[n], 32))
 
+        # Bang-Bang (HI-POWER) Heaters
         for n in range(len(self.BBaddr)):
             self.BBmem.append(self.read(self.BBaddr[n], 32))
+
+    def fill_eeprom(self):
+        """
+        Fill the EEPROM according to the memory map.
+        """
+
+        # DACs
+        for n in range(len(self.DACaddr)):
+            self.write(self.DACaddr[n], self.DACmem[n])
+
+        # AD7124s
+        for n in range(len(self.ADCaddr)):
+            # TODO:
+            # - Write 32 bytes then the final 4
+            self.write(self.ADCaddr[n], self.ADCmem[n])
+
+        # ADS1015
+        self.write(self.ADS1015addr, self.ADS1015mem)
+        
+        # BME280
+        self.write(self.BME280addr, self.BME280mem)
+        
+        # PID Heaters
+        for n in range(len(self.PIDaddr)):
+            self.write(self.PIDaddr[n], self.PIDmem[n])
+
+        # Bang-Bang (HI-POWER) Heaters
+        for n in range(len(self.BBaddr)):
+            self.write(self.BBaddr[n], self.BBmem[n])
