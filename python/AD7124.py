@@ -3,7 +3,7 @@
 # Aidan Gray
 # aidan.gray@idg.jhu.edu
 #
-# 
+# AD7124 Analog-Digital Converter for the 12 temperature sensors.
 
 import RPi.GPIO as GPIO
 import logging
@@ -16,7 +16,7 @@ class AD7124Error(ValueError):
 
 class AD7124:
 
-    def __init__(self, idx, io, eeprom):
+    def __init__(self, idx, io, eeprom, sns_typ=None, sns_units=None, calib_fit=None):
         if idx < 0 or idx > 11:
             raise AD7124Error("Failed to initialize AD7124. Index out of range.")
         
@@ -24,6 +24,9 @@ class AD7124:
         self.idx = idx  # ADC address
         self.io = io    # GPIO
         self.eeprom = eeprom
+        self.sns_typ = sns_typ
+        self.sns_units = sns_units
+        self.calib_fit = calib_fit
 
         # GPIO Pins
         self.mosi = self.io.pin_map['SPI0_MOSI']
@@ -31,48 +34,30 @@ class AD7124:
         self.sclk = self.io.pin_map['SPI0_SCLK']
         self.sync = self.io.pin_map['nADC_SYNC']
 
-        ## Get initialization data from EEPROM
-        # self.AD7124_reg_dict = {
-        #                         'ADC_CONTROL':  (0x01, int.from_bytes(self.eeprom.ADCmem[self.idx][0:2], byteorder='big'), 2), 
-        #                         'IO_CONTROL_1': (0x03, int.from_bytes(self.eeprom.ADCmem[self.idx][2:5], byteorder='big'), 3),
-        #                         'IO_CONTROL_2': (0x04, int.from_bytes(self.eeprom.ADCmem[self.idx][5:7], byteorder='big'), 2),
-        #                         'ERROR_EN':     (0x07, int.from_bytes(self.eeprom.ADCmem[self.idx][7:10], byteorder='big'), 3),
-        #                         'CHANNEL_0':    (0x09, int.from_bytes(self.eeprom.ADCmem[self.idx][10:12], byteorder='big'), 2),
-        #                         'CHANNEL_1':    (0x0A, int.from_bytes(self.eeprom.ADCmem[self.idx][12:14], byteorder='big'), 2),
-        #                         'CONFIG_0':     (0x19, int.from_bytes(self.eeprom.ADCmem[self.idx][14:16], byteorder='big'), 2),
-        #                         'CONFIG_1':     (0x1A, int.from_bytes(self.eeprom.ADCmem[self.idx][16:18], byteorder='big'), 2),
-        #                         'FILTER_0':     (0x21, int.from_bytes(self.eeprom.ADCmem[self.idx][18:21], byteorder='big'), 3),
-        #                         'FILTER_1':     (0x22, int.from_bytes(self.eeprom.ADCmem[self.idx][21:24], byteorder='big'), 3),
-        #                         'OFFSET_0':     (0x29, int.from_bytes(self.eeprom.ADCmem[self.idx][24:27], byteorder='big'), 3),
-        #                         'OFFSET_1':     (0x2A, int.from_bytes(self.eeprom.ADCmem[self.idx][27:30], byteorder='big'), 3),
-        #                         'GAIN_0':       (0x31, int.from_bytes(self.eeprom.ADCmem[self.idx][30:33], byteorder='big'), 3),
-        #                         'GAIN_1':       (0x32, int.from_bytes(self.eeprom.ADCmem[self.idx][33:36], byteorder='big'), 3)
-        #                         }
-
-        # Custom-set initialization data
+        # Get initialization data from EEPROM
         self.AD7124_reg_dict = {
-                                'ADC_CONTROL':  [0x01, 0x1304, 2], 
-                                'IO_CONTROL_1': [0x03, 0x041200, 3],
-                                'IO_CONTROL_2': [0x04, 0x0000, 2],
-                                'ERROR_EN':     [0x07, 0x000040, 3],
-                                'CHANNEL_0':    [0x09, 0x8023, 2],
-                                'CHANNEL_1':    [0x0A, 0x0000, 2],
-                                'CONFIG_0':     [0x19, 0x01E0, 2],
-                                'CONFIG_1':     [0x1A, 0x01E0, 2],
-                                'FILTER_0':     [0x21, 0x060180, 3],
-                                'FILTER_1':     [0x22, 0x060180, 3]}
-                                # 'OFFSET_0':     (0x29, 0x800000, 3),
-                                # 'OFFSET_1':     (0x2A, 0x800000, 3),
-                                # 'GAIN_0':       (0x31, 0x500000, 3),
-                                # 'GAIN_1':       (0x32, 0x500000, 3)
-                                # }
+                                'ADC_CONTROL':  [0x01, int.from_bytes(self.eeprom.ADCmem[self.idx][0:2], byteorder='big'), 2], 
+                                'IO_CONTROL_1': [0x03, int.from_bytes(self.eeprom.ADCmem[self.idx][2:5], byteorder='big'), 3],
+                                'IO_CONTROL_2': [0x04, int.from_bytes(self.eeprom.ADCmem[self.idx][5:7], byteorder='big'), 2],
+                                'ERROR_EN':     [0x07, int.from_bytes(self.eeprom.ADCmem[self.idx][7:10], byteorder='big'), 3],
+                                'CHANNEL_0':    [0x09, int.from_bytes(self.eeprom.ADCmem[self.idx][10:12], byteorder='big'), 2],
+                                'CHANNEL_1':    [0x0A, int.from_bytes(self.eeprom.ADCmem[self.idx][12:14], byteorder='big'), 2],
+                                'CONFIG_0':     [0x19, int.from_bytes(self.eeprom.ADCmem[self.idx][14:16], byteorder='big'), 2],
+                                'CONFIG_1':     [0x1A, int.from_bytes(self.eeprom.ADCmem[self.idx][16:18], byteorder='big'), 2],
+                                'FILTER_0':     [0x21, int.from_bytes(self.eeprom.ADCmem[self.idx][18:21], byteorder='big'), 3],
+                                'FILTER_1':     [0x22, int.from_bytes(self.eeprom.ADCmem[self.idx][21:24], byteorder='big'), 3],
+                                'OFFSET_0':     [0x29, int.from_bytes(self.eeprom.ADCmem[self.idx][24:27], byteorder='big'), 3],
+                                'OFFSET_1':     [0x2A, int.from_bytes(self.eeprom.ADCmem[self.idx][27:30], byteorder='big'), 3],
+                                'GAIN_0':       [0x31, int.from_bytes(self.eeprom.ADCmem[self.idx][30:33], byteorder='big'), 3],
+                                'GAIN_1':       [0x32, int.from_bytes(self.eeprom.ADCmem[self.idx][33:36], byteorder='big'), 3]
+                                }
+
         if self.idx == 0:
             self.AD7124_reg_dict['ADC_CONTROL'][1] = 0x1305
-
-        for n in self.AD7124_reg_dict:
+        
+        for n in list(self.AD7124_reg_dict)[0:10]:
             register = self.AD7124_reg_dict[n]
             self.__adc_write_data(register[0], register[1], register[2])
-    
 
     def reset(self):
         data2 = 65535
@@ -276,45 +261,59 @@ class AD7124:
 
     ### SETTERS ###
     def set_ADC_CONTROL(self, data):
+        self.AD7124_reg_dict['ADC_CONTROL'][1] = data
         self.__adc_write_data(0x01, data, 2)
     
     def set_IO_CONTROL_1(self, data):
+        self.AD7124_reg_dict['IO_CONTROL_1'][1] = data
         self.__adc_write_data(0x03, data, 3)
     
     def set_IO_CONTROL_2(self, data):
+        self.AD7124_reg_dict['IO_CONTROL_2'][1] = data
         self.__adc_write_data(0x04, data, 2)
 
     def set_ERROR_EN(self, data):
+        self.AD7124_reg_dict['ERROR_EN'][1] = data
         self.__adc_write_data(0x07, data, 3)
 
     def set_CHANNEL_0(self, data):
+        self.AD7124_reg_dict['CHANNEL_0'][1] = data
         self.__adc_write_data(0x09, data, 2)
 
-    def set_CHANNEL_0(self, data):
+    def set_CHANNEL_1(self, data):
+        self.AD7124_reg_dict['CHANNEL_1'][1] = data
         self.__adc_write_data(0x0A, data, 2)
 
     def set_CONFIG_0(self, data):
+        self.AD7124_reg_dict['CONFIG_0'][1] = data
         self.__adc_write_data(0x19, data, 2)
 
     def set_CONFIG_1(self, data):
+        self.AD7124_reg_dict['CONFIG_1'][1] = data
         self.__adc_write_data(0x1A, data, 2)
 
     def set_FILTER_0(self, data):
+        self.AD7124_reg_dict['FILTER_0'][1] = data
         self.__adc_write_data(0x21, data, 3)
     
     def set_FILTER_1(self, data):
+        self.AD7124_reg_dict['FILTER_1'][1] = data
         self.__adc_write_data(0x22, data, 3)
 
     def set_OFFSET_0(self, data):
+        self.AD7124_reg_dict['OFFSET_0'][1] = data
         self.__adc_write_data(0x29, data, 3)
 
     def set_OFFSET_1(self, data):
+        self.AD7124_reg_dict['OFFSET_1'][1] = data
         self.__adc_write_data(0x2A, data, 3)
 
     def set_GAIN_0(self, data):
+        self.AD7124_reg_dict['GAIN_0'][1] = data
         self.__adc_write_data(0x31, data, 3)
 
     def set_GAIN_1(self, data):
+        self.AD7124_reg_dict['GAIN_1'][1] = data
         self.__adc_write_data(0x32, data, 3)
 
     def set_excitation_current(self, val):
@@ -350,3 +349,13 @@ class AD7124:
             io_control_1 |= (1<<13)
         
         self.set_IO_CONTROL_1(io_control_1)
+
+    def update_eeprom_mem(self):
+        ADCbyteArray = bytearray()
+
+        for reg in self.AD7124_reg_dict:
+            register = self.AD7124_reg_dict[reg]
+            regByteArray = register[1].to_bytes(register[2], byteorder='big')
+            ADCbyteArray.extend(regByteArray)
+
+        self.eeprom.ADCmem[self.idx] = ADCbyteArray

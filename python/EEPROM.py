@@ -38,20 +38,21 @@ DEFAULT_DAC_DATA = b'\x00\x00' \
                    b'\x00\x00' \
                    b'\x00\x00'
 
-DEFAULT_ADC_DATA =  b'\x00\x00' \
-                    b'\x00\x00\x00' \
-                    b'\x00\x00' \
-                    b'\x00\x00\x00' \
-                    b'\x00\x00' \
-                    b'\x00\x00' \
-                    b'\x00\x00' \
-                    b'\x00\x00' \
-                    b'\x00\x00\x00' \
-                    b'\x00\x00\x00' \
-                    b'\x00\x00\x00' \
-                    b'\x00\x00\x00' \
-                    b'\x00\x00\x00' \
-                    b'\x00\x00\x00'
+DEFAULT_ADC_DATA_1 =    b'\x13\x04' \
+                        b'\x04\x12\x00' \
+                        b'\x00\x00' \
+                        b'\x00\x00\x40' \
+                        b'\x80\x23' \
+                        b'\x00\x00' \
+                        b'\x01\xE0' \
+                        b'\x01\xE0' \
+                        b'\x06\x01\x80' \
+                        b'\x06\x01\x80' \
+                        b'\x80\x00\x00' \
+                        b'\x80\x00\x00' 
+
+DEFAULT_ADC_DATA_2 =    b'\x00\x00\x00' \
+                        b'\x00\x00\x00'
 
 
 class EEPROMError(IOError):
@@ -103,11 +104,15 @@ class EEPROM():
         # Check if eeprom has been initialized already
         if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
             self._initialize_eeprom()
+            print('eeprom initialized')
 
             if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
                 raise EEPROMError("Failed to initialize eeprom to default values")    
         
         self.readout_eeprom()
+
+    def reset_eeprom(self):
+        self.write(EEPROM_LOADED_ADDR, b'\x00')
 
     def _initialize_eeprom(self):
         """
@@ -120,7 +125,8 @@ class EEPROM():
 
         # Write default values to ADC0-11
         for ADC in self.ADCaddr:
-            self.write(ADC, DEFAULT_ADC_DATA)
+            self.write(ADC, DEFAULT_ADC_DATA_1)
+            self.write(ADC+32, DEFAULT_ADC_DATA_2)
 
         # Set the check byte
         self.write(EEPROM_LOADED_ADDR, EEPROM_LOADED_VAL)
@@ -215,7 +221,8 @@ class EEPROM():
         for n in range(len(self.ADCaddr)):
             # TODO:
             # - Write 32 bytes then the final 4
-            self.write(self.ADCaddr[n], self.ADCmem[n])
+            self.write(self.ADCaddr[n], self.ADCmem[n][0:32])
+            self.write(self.ADCaddr[n]+32, self.ADCmem[n][32:36])
 
         # ADS1015
         self.write(self.ADS1015addr, self.ADS1015mem)

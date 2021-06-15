@@ -6,6 +6,7 @@
 #
 # The main script for the Sensor Monitor / Temperature Control Board
 
+from chebyFit import chebyFit
 from EEPROM import EEPROM
 
 import logging
@@ -58,7 +59,11 @@ async def runSMB(logLevel=logging.INFO):
     dac3 = DAC(3, io, eeprom, 'BB')  # initialize DAC3
     dacList.append(dac3)
 
-    adcList = [AD7124(i, io, eeprom) for i in range(12)]
+    # adcList = [AD7124(i, io, eeprom) for i in range(12)]
+    adcList = []
+    for i in range(12):
+        # calib_fit = chebyFit(data='', deg='')
+        adcList.append(AD7124(i, io, eeprom))
 
     # print(f'STATUS={"{0:08b}".format(adcList[n].get_STATUS())}')
 

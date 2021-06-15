@@ -68,6 +68,10 @@ class CMDLoop:
             if newTime - tempTime >= 1:
                 for n in range(len(self.adcList)):
                     temp = self.adcList[n].get_DATA()
+
+                    # Convert Reading
+
+
                     self.tlm['adc_int_temp'+str(n+1)] = temp
                 tempTime = time.perf_counter()
 
@@ -261,10 +265,14 @@ class CMDLoop:
                 pass
 
             elif cmd == 'sns_typ':
-                pass
+                sns = int(p1 - 1)
+                self.adcList[sns].sns_typ = p2
+                retData = 'OK'
 
             elif cmd == 'sns_units':
-                pass
+                sns = int(p1 - 1)
+                self.adcList[sns].sns_units = p2
+                retData = 'OK'
             
             elif cmd == 'sns_cal':
                 sensor = p1
@@ -279,6 +287,10 @@ class CMDLoop:
 
                 # TODO: convert calData[][0] points from sensor units to bits
                 chebyshevFit = chebyFit(calData, 10)
+                
+                self.adcList[p1-1].calib_fit = chebyshevFit  # add the calibration to the ADC
+
+                # Store the calibration info in the global dict (possibly redundant...)
                 self.cal[sensor]['coeffs'] = chebyshevFit.chebyFit[0]
                 self.cal[sensor]['zl'] = chebyshevFit.chebyFit[1]
                 self.cal[sensor]['zu'] = chebyshevFit.chebyFit[2]
@@ -366,7 +378,7 @@ class CMDLoop:
                 sensor = sensor.split('.')[0]
                 sensorName = 'adc_int_temp'+sensor
                 temp = self.tlm[sensorName]
-                retData = f'sns_temp{sensor}={temp!r}'
+                retData = f'sns_temp_{sensor}={temp!r}'
 
             elif cmd == 'htr_ena':
                 pass
@@ -383,16 +395,20 @@ class CMDLoop:
                 pass
 
             elif cmd == 'sns_typ':
-                pass
+                sns = int(p1 - 1)
+                sns_typ = self.adcList[sns].sns_typ
+                retData = f'sns_typ_{sns}={sns_typ}'
 
             elif cmd == 'sns_units':
-                pass
+                sns = int(p1 - 1)
+                sns_units = self.adcList[sns].sns_units
+                retData = f'sns_units_{sns}={sns_units}'
 
             elif cmd == 'htr_cur':
                 if p1 == 1:
-                    retData = 'htr_current1='+str(self.tlm['htr_current1'])
+                    retData = 'htr_cur_1='+str(self.tlm['htr_current1'])
                 elif p1 == 2:
-                    retData = 'htr_current2='+str(self.tlm['htr_current2'])
+                    retData = 'htr_cur_2='+str(self.tlm['htr_current2'])
                 else:
                     retData = f'BAD,command failure: unknown arg {p1!r}'
 
