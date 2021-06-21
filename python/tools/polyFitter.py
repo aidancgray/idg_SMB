@@ -21,7 +21,7 @@ import os
 #                   displays the calibrated result. enter 'q' to exit
 #   plot=on         This plots the data, the fit, and test points if given.   
 #   file=FILEPATH   This is the path to the calibration data file.
-
+#
 # The calibration data file should be a CSV in the following format:
 #
 #   RAW_VALUE_1,TEMPERATURE_1
