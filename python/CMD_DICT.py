@@ -95,7 +95,14 @@ cmd_set_dict = {
                 'P1_MAX': 12,
                 'P2_MIN': 0,
                 'P2_MAX': 7,
-                'DESC': 'Store Excit uA(0=None, 1=50, 2=100, 3=250, 4=500, 5=750, 6,7=1000'}       
+                'DESC': 'Store Excit uA(0=None, 1=50, 2=100, 3=250, 4=500, 5=750, 6,7=1000'},
+        'update_eeprom': {'P#': 0,
+                'P1_MIN': None,
+                'P1_MAX': None,
+                'P2_MIN': None,
+                'P2_MAX': None,
+                'DESC': 'Store the current configuration in the eeprom for next reboot.'
+        } 
 }
 
 cmd_get_dict = {

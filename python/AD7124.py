@@ -9,6 +9,8 @@ import RPi.GPIO as GPIO
 import logging
 import time
 
+from polyFit import polyFit
+
 DELAY = 0.00000000004
 
 class AD7124Error(ValueError):
@@ -16,7 +18,7 @@ class AD7124Error(ValueError):
 
 class AD7124:
 
-    def __init__(self, idx, io, eeprom, sns_typ=None, sns_units=None, calib_fit=None):
+    def __init__(self, idx, io, eeprom, sns_typ=None, sns_units=None):
         if idx < 0 or idx > 11:
             raise AD7124Error("Failed to initialize AD7124. Index out of range.")
         
@@ -26,7 +28,6 @@ class AD7124:
         self.eeprom = eeprom
         self.sns_typ = sns_typ
         self.sns_units = sns_units
-        self.calib_fit = calib_fit
 
         # GPIO Pins
         self.mosi = self.io.pin_map['SPI0_MOSI']
@@ -58,6 +59,35 @@ class AD7124:
         for n in list(self.AD7124_reg_dict)[0:10]:
             register = self.AD7124_reg_dict[n]
             self.__adc_write_data(register[0], register[1], register[2])
+
+        if self.sns_typ == 1:
+            # PT-100
+            self.set_excitation_current(3)
+            self.set_pga(16)
+            self.set_refV('lo')
+            self.vref = 0.98
+            self.excit_cur = 0.000250
+            self.gain = 16
+
+            #self.calib_fit = polyFit(coeffs=)
+
+        elif self.sns_typ == 2:
+            # PT-1000
+            self.set_excitation_current(3)
+            self.set_pga(2)
+            self.set_refV('lo')
+            self.vref = 0.98
+            self.excit_cur = 0.000250
+            self.gain = 2
+        
+        elif self.sns_typ == 3:
+            # DIODE
+            self.set_excitation_current(1)
+            self.set_pga(1)
+            self.set_refV('hi')
+            self.vref = 1.96
+            self.excit_cur = 0.000050
+            self.gain = 1
 
     def reset(self):
         data2 = 65535
@@ -259,6 +289,15 @@ class AD7124:
         io_control_1 = self.get_IO_CONTROL_1()
         return io_control_1 >> 11 & 0b111
 
+    def get_temperature(self):
+        data = self.get_DATA()
+        resistance = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
+        # TODO:
+        # get calibration
+        temperature = resistance
+        
+        return temperature
+
     ### SETTERS ###
     def set_ADC_CONTROL(self, data):
         self.AD7124_reg_dict['ADC_CONTROL'][1] = data
@@ -348,6 +387,54 @@ class AD7124:
             io_control_1 |= (1<<12)
             io_control_1 |= (1<<13)
         
+        self.set_IO_CONTROL_1(io_control_1)
+
+    def set_pga(self, val):
+        config_0 = self.get_CONFIG_0()
+        
+        if val == 1:
+            config_0 &=~ (1<<0)
+            config_0 &=~ (1<<1)
+            config_0 &=~ (1<<2)
+        elif val == 2:
+            config_0 |= (1<<0)
+            config_0 &=~ (1<<1)
+            config_0 &=~ (1<<2)
+        elif val == 4:
+            config_0 &=~ (1<<0)
+            config_0 |= (1<<1)
+            config_0 &=~ (1<<2)
+        elif val == 8:
+            config_0 |= (1<<0)
+            config_0 |= (1<<1)
+            config_0 &=~ (1<<2)
+        elif val == 16:
+            config_0 &=~ (1<<0)
+            config_0 &=~ (1<<1)
+            config_0 |= (1<<2)
+        elif val == 32:
+            config_0 |= (1<<0)
+            config_0 &=~ (1<<1)
+            config_0 |= (1<<2)
+        elif val == 64:
+            config_0 &=~ (1<<0)
+            config_0 |= (1<<1)
+            config_0 |= (1<<2)
+        elif val == 128:
+            config_0 |= (1<<0)
+            config_0 |= (1<<1)
+            config_0 |= (1<<2)
+        
+        self.set_CONFIG_0(config_0)
+
+    def set_refV(self, val):
+        io_control_1 = self.get_IO_CONTROL_1()
+        
+        if val == 'hi':
+            io_control_1 &=~ (1<<22)
+        elif val == 'lo':
+            io_control_1 |= (1<<22)
+
         self.set_IO_CONTROL_1(io_control_1)
 
     def update_eeprom_mem(self):

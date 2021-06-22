@@ -20,6 +20,26 @@ class DAC():
         self.idx = idx  # DAC address
         self.io = io    # GPIO
         self.eeprom = eeprom
+
+        self.DAC_reg_dict = {
+                            'RESET':        [0x01, int.from_bytes(self.eeprom.DACmem[self.idx][0:2], byteorder='big'), 2],
+                            'RESET_CONFIG': [0x02, int.from_bytes(self.eeprom.DACmem[self.idx][2:4], byteorder='big'), 2],
+                            'SEL_DAC':      [0x03, int.from_bytes(self.eeprom.DACmem[self.idx][4:6], byteorder='big'), 2], 
+                            'CONF_DAC':     [0x04, int.from_bytes(self.eeprom.DACmem[self.idx][6:8], byteorder='big'), 2],
+                            'DAC_DATA':     [0x05, int.from_bytes(self.eeprom.DACmem[self.idx][8:10], byteorder='big'), 2],
+                            'SEL_BB':       [0x06, int.from_bytes(self.eeprom.DACmem[self.idx][10:12], byteorder='big'), 2],
+                            'CONF_BB':      [0x07, int.from_bytes(self.eeprom.DACmem[self.idx][12:14], byteorder='big'), 2],
+                            'CHAN_CAL':     [0x08, int.from_bytes(self.eeprom.DACmem[self.idx][14:16], byteorder='big'), 2],
+                            'CHAN_GAIN':    [0x09, int.from_bytes(self.eeprom.DACmem[self.idx][16:18], byteorder='big'), 2],
+                            'CHAN_OFFSET':  [0x0A, int.from_bytes(self.eeprom.DACmem[self.idx][18:20], byteorder='big'), 2],
+                            'STATUS':       [0x0B, int.from_bytes(self.eeprom.DACmem[self.idx][20:22], byteorder='big'), 2],
+                            'STATUS_MASK':  [0x0C, int.from_bytes(self.eeprom.DACmem[self.idx][22:24], byteorder='big'), 2],
+                            'ALARM_ACT':    [0x0D, int.from_bytes(self.eeprom.DACmem[self.idx][24:26], byteorder='big'), 2],
+                            'ALARM_CODE':   [0x0E, int.from_bytes(self.eeprom.DACmem[self.idx][26:28], byteorder='big'), 2],
+                            'WATCHDOG':     [0x10, int.from_bytes(self.eeprom.DACmem[self.idx][28:30], byteorder='big'), 2],
+                            'ID':           [0x11, int.from_bytes(self.eeprom.DACmem[self.idx][30:32], byteorder='big'), 2]
+                            }
+
         self.logger = logging.getLogger('smb')
 
         # GPIO Pins
@@ -31,8 +51,8 @@ class DAC():
         self.mss = self.io.pin_map['nDAC_MSS']
 
         # Heater Parameters
-        self.__set_mode(mode)  # PID, BB, or FIXED
-        self.__set_hysteresis(0)  # Allowable range for BB
+        self.__set_mode(mode)  # PID, HIPWR, or FIXED
+        self.__set_hysteresis(0)  # Allowable range for HIPWR
         self.__set_kp(0)  # proportional term
         self.__set_ki(0)  # integral term
         self.__set_kd(0)  # derivative term
@@ -219,7 +239,7 @@ class DAC():
         return self.__mode
 
     def __set_mode(self, var):
-        if var == 'PID' or var == 'BB' or var == 'FIXED':
+        if var == 'PID' or var == 'HIPWR' or var == 'FIXED':
             self.__mode = var
         else:
             raise DACError("Failed to initialize DAC. Improper Mode.")
@@ -290,3 +310,13 @@ class DAC():
     etPrev = property(__get_etPrev, __set_etPrev)
     controlVar = property(__get_controlVar, __set_controlVar)
     rebootMode = property(__get_rebootMode, __set_rebootMode)
+
+    def update_eeprom_mem(self):
+        DACbyteArray = bytearray()
+
+        for reg in self.DAC_reg_dict:
+            register = self.DAC_reg_dict[reg]
+            regByteArray = register[0].to_bytes(register[1], byteorder='big')
+            DACbyteArray.extend(regByteArray)
+
+        self.eeprom.DACmem[self.idx] = DACbyteArray

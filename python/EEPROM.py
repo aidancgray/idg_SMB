@@ -12,6 +12,7 @@
 # The location of the data to read/write requires a 2x 1-byte words,
 # followed by the number of bytes to read or the data to write.
 
+from ADS1015 import ADS1015
 from smbus2 import SMBus, i2c_msg
 import time
 import logging
@@ -39,7 +40,7 @@ DEFAULT_DAC_DATA = b'\x00\x00' \
                    b'\x00\x00'
 
 DEFAULT_ADC_DATA_1 =    b'\x13\x04' \
-                        b'\x04\x12\x00' \
+                        b'\x04\x00\x00' \
                         b'\x00\x00' \
                         b'\x00\x00\x40' \
                         b'\x80\x23' \
@@ -54,6 +55,12 @@ DEFAULT_ADC_DATA_1 =    b'\x13\x04' \
 DEFAULT_ADC_DATA_2 =    b'\x00\x00\x00' \
                         b'\x00\x00\x00'
 
+DEFAULT_ADS1015_DATA =  b'\x89\x83' \
+                        b'\xB9\x83'
+
+DEFAULT_BME280_DATA =   b'\x01' \
+                        b'\x27' \
+                        b'\x00'
 
 class EEPROMError(IOError):
     pass
@@ -77,29 +84,29 @@ class EEPROM():
         self.ADCmem = []
         self.ADCaddr = []
         for i in range(8):
-            self.ADCaddr.append(0x0100 + 0x24 * i)
+            self.ADCaddr.append(0x0100 + 0x40 * i)
         for i in range(4):
-            self.ADCaddr.append(0x0220 + 0x24 * i)
+            self.ADCaddr.append(0x0300 + 0x40 * i)
 
         # ADS1015 byte addresses
         self.ADS1015mem = 0
-        self.ADS1015addr = 0x0300
+        self.ADS1015addr = 0x0400
 
         # BME280 byte addresses
         self.BME280mem = 0
-        self.BME280addr = 0x0320
+        self.BME280addr = 0x0420
 
         # PID Heaters byte addresses
         self.PIDmem = []
         self.PIDaddr = []
         for i in range(4):
-            self.PIDaddr.append(0x0400 + 0x20 * i)
+            self.PIDaddr.append(0x0440 + 0x20 * i)
 
-        # Bang-Bang Heaters byte addresses
-        self.BBmem = []
-        self.BBaddr = []
+        # HI-PWR (Bang-Bang) Heaters byte addresses
+        self.HIPWRmem = []
+        self.HIPWRaddr = []
         for i in range(2):
-            self.BBaddr.append(0x0480 + 0x20 * i)
+            self.HIPWRaddr.append(0x04C0 + 0x20 * i)
 
         # Check if eeprom has been initialized already
         if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
@@ -112,6 +119,12 @@ class EEPROM():
         self.readout_eeprom()
 
     def reset_eeprom(self):
+        '''
+        Clear out all of the memory in the EEPROM and clear the 
+        EEPROM_LOADED bit.
+        '''
+        # for addr in range(1248):
+        #     self.write(addr, b'\x00')
         self.write(EEPROM_LOADED_ADDR, b'\x00')
 
     def _initialize_eeprom(self):
@@ -127,6 +140,12 @@ class EEPROM():
         for ADC in self.ADCaddr:
             self.write(ADC, DEFAULT_ADC_DATA_1)
             self.write(ADC+32, DEFAULT_ADC_DATA_2)
+
+        # Write default values to ADS1015
+        self.write(self.ADS1015addr, DEFAULT_ADS1015_DATA)
+
+        # Write default values to BME280
+        self.write(self.BME280addr, DEFAULT_BME280_DATA)
 
         # Set the check byte
         self.write(EEPROM_LOADED_ADDR, EEPROM_LOADED_VAL)
@@ -192,11 +211,11 @@ class EEPROM():
 
         # AD7124s
         for n in range(len(self.ADCaddr)):
-            self.ADCmem.append(self.read(self.ADCaddr[n], 36))
-            
+            self.ADCmem.append(self.read(self.ADCaddr[n], 64))
+
         # ADS1015
         self.ADS1015mem = self.read(self.ADS1015addr, 32)
-        
+
         # BME280
         self.BME280mem = self.read(self.BME280addr, 32)
         
@@ -204,9 +223,26 @@ class EEPROM():
         for n in range(len(self.PIDaddr)):
             self.PIDmem.append(self.read(self.PIDaddr[n], 32))
 
-        # Bang-Bang (HI-POWER) Heaters
-        for n in range(len(self.BBaddr)):
-            self.BBmem.append(self.read(self.BBaddr[n], 32))
+        # HI-PWR (Bang-Bang) Heaters
+        for n in range(len(self.HIPWRaddr)):
+            self.HIPWRmem.append(self.read(self.HIPWRaddr[n], 32))
+
+    def printout_eeprom(self):
+        for n in range(len(self.DACmem)):
+            self.logger.info(f'DACmem_{n}={self.DACmem[n]}')
+
+        for n in range(len(self.ADCmem)):
+            self.logger.info(f'ADCmem_{n}={self.ADCmem[n]}')
+
+        self.logger.info(f'ADS1015mem={self.ADS1015mem}')
+
+        self.logger.info(f'BME280mem={self.BME280mem}')
+
+        for n in range(len(self.PIDmem)):
+            self.logger.info(f'PIDmem_{n}={self.PIDmem[n]}')
+
+        for n in range(len(self.HIPWRmem)):
+            self.logger.info(f'HIPWRmem_{n}={self.HIPWRmem[n]}')
 
     def fill_eeprom(self):
         """
@@ -234,6 +270,6 @@ class EEPROM():
         for n in range(len(self.PIDaddr)):
             self.write(self.PIDaddr[n], self.PIDmem[n])
 
-        # Bang-Bang (HI-POWER) Heaters
-        for n in range(len(self.BBaddr)):
-            self.write(self.BBaddr[n], self.BBmem[n])
+        # HI-PWR (Bang-Bang) Heaters
+        for n in range(len(self.HIPWRaddr)):
+            self.write(self.HIPWRaddr[n], self.HIPWRmem[n])

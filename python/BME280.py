@@ -22,20 +22,30 @@ class BME280Error(IOError):
 class BME280:
     def __init__(self, eeprom):
         self.eeprom = eeprom
+
+        self.BME280_reg_dict = {
+                                'CTRL_HUM':     [0xF2, int.from_bytes(self.eeprom.BME280mem[0:1], byteorder='big'), 1], 
+                                'CTRL_MEAS':    [0xF4, int.from_bytes(self.eeprom.BME280mem[1:2], byteorder='big'), 1],
+                                'CONFIG':       [0xF5, int.from_bytes(self.eeprom.BME280mem[2:3], byteorder='big'), 1]
+                                }
+
         self.logger = logging.getLogger('smb')
         self.i2cBus = SMBus(BUS_ID)
         self.i2cAddr = DEV_ID
-        self.ctrlHumAddr = 0xF2
-        self.ctrlMeasAddr = 0xF4
-        self.configAddr = 0xF5
+        self.ctrlHumAddr = self.BME280_reg_dict['CTRL_HUM'][0]
+        self.ctrlHumMem = self.BME280_reg_dict['CTRL_HUM'][1]
+        self.ctrlMeasAddr = self.BME280_reg_dict['CTRL_MEAS'][0]
+        self.ctrlMeasMem = self.BME280_reg_dict['CTRL_MEAS'][1]
+        self.configAddr = self.BME280_reg_dict['CONFIG'][0]
+        self.configMem = self.BME280_reg_dict['CONFIG'][1]
         self.resetAddr = 0xE0  # Write 0xB6 to reset
         self.pAddr = [0xF7, 0xF8, 0xF9]
         self.tAddr = [0xFA, 0xFB, 0xFC]
         self.hAddr = [0xFD, 0xFE]
     
-        self._write(self.ctrlHumAddr, b'\x01')  # Humidity: Oversampling rate x1
-        self._write(self.ctrlMeasAddr, b'\x27')   # Press&Temp: Oversampling rate x1 & Normal Mode
-        self._write(self.configAddr, b'\x00')  # Configure the standby mode and IIR Filter
+        self._write(self.ctrlHumAddr, self.ctrlHumMem.to_bytes(1, byteorder='big'))      # Humidity: Oversampling rate x1
+        self._write(self.ctrlMeasAddr, self.ctrlMeasMem.to_bytes(1, byteorder='big'))    # Press&Temp: Oversampling rate x1 & Normal Mode
+        self._write(self.configAddr, self.configMem.to_bytes(1, byteorder='big'))        # Configure the standby mode and IIR Filter
 
         self.t_fine = 0  # Holds fine resolution temperature value for pressure compensation formula
 
@@ -256,3 +266,13 @@ class BME280:
     def get_humidity(self):
         cP, cT, cH = self._get_data()
         return float("{:.2f}".format(cH))
+
+    def update_eeprom_mem(self):
+        BMEbyteArray = bytearray()
+
+        for reg in self.BME280_reg_dict:
+            register = self.BME280_reg_dict[reg]
+            regByteArray = register[0].to_bytes(register[1], byteorder='big')
+            BMEbyteArray.extend(regByteArray)
+
+        self.eeprom.BME280mem = BMEbyteArray

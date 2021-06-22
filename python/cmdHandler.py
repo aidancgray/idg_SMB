@@ -59,22 +59,17 @@ class CMDLoop:
 
             ### Temperature Sensor ###
             # TODO: 
-            # + get sensor readings 
-            # - convert readings using chebyFits
-            # + update telemetry
+            # - convert readings using Fits
             # - update PID loops in each DAC from dacList
             
             # Update temperature values every 1 second
             if newTime - tempTime >= 1:
                 for n in range(len(self.adcList)):
-                    temp = self.adcList[n].get_DATA()
-
-                    # Convert Reading
-
-
+                    temp = self.adcList[n].get_temperature()
+                    self.logger.info(f'res_{n}={temp}')
                     self.tlm['adc_int_temp'+str(n+1)] = temp
                 tempTime = time.perf_counter()
-
+                self.logger.info(f'------------------')
 
             ### Check the Command Queue ###
             if not self.qCmd.empty():
@@ -267,6 +262,35 @@ class CMDLoop:
             elif cmd == 'sns_typ':
                 sns = int(p1 - 1)
                 self.adcList[sns].sns_typ = p2
+                
+                # Update ExcitationCurrent/Gain/RefVoltage
+                if p2 == '1':
+                    # PT-100
+                    self.adcList[sns].set_excitation_current(3)
+                    self.adcList[sns].set_pga(16)
+                    self.adcList[sns].set_refV('lo')
+                    self.adcList[sns].vref = 0.98
+                    self.adcList[sns].excit_cur = 0.000250
+                    self.adcList[sns].gain = 16
+
+                elif p2 == '2':
+                    # PT-1000
+                    self.adcList[sns].set_excitation_current(3)
+                    self.adcList[sns].set_pga(2)
+                    self.adcList[sns].set_refV('lo')
+                    self.adcList[sns].vref = 0.98
+                    self.adcList[sns].excit_cur = 0.000250
+                    self.adcList[sns].gain = 2
+                
+                elif p2 == '3':
+                    # DIODE
+                    self.adcList[sns].set_excitation_current(1)
+                    self.adcList[sns].set_pga(1)
+                    self.adcList[sns].set_refV('hi')
+                    self.adcList[sns].vref = 1.96
+                    self.adcList[sns].excit_cur = 0.000050
+                    self.adcList[sns].gain = 1
+
                 retData = 'OK'
 
             elif cmd == 'sns_units':

@@ -40,6 +40,7 @@ async def runSMB(logLevel=logging.INFO):
     logger.info('starting logging')
 
     eeprom = EEPROM()  # Read in EEPROM data
+    #eeprom.reset_eeprom()
 
     tlm = Gbl.telemetry  # Telemetry dictionary
     cal = Gbl.sensor_cal # Sensor Calibration dictionary
@@ -54,23 +55,24 @@ async def runSMB(logLevel=logging.INFO):
     dacList.append(dac0)
     dac1 = DAC(1, io, eeprom, 'PID')  # initialize DAC1
     dacList.append(dac1)
-    dac2 = DAC(2, io, eeprom, 'BB')  # initialize DAC2
+    dac2 = DAC(2, io, eeprom, 'HIPWR')  # initialize DAC2
     dacList.append(dac2)
-    dac3 = DAC(3, io, eeprom, 'BB')  # initialize DAC3
+    dac3 = DAC(3, io, eeprom, 'HIPWR')  # initialize DAC3
     dacList.append(dac3)
 
-    # adcList = [AD7124(i, io, eeprom) for i in range(12)]
     adcList = []
     for i in range(12):
-        # calib_fit = chebyFit(data='', deg='')
-        adcList.append(AD7124(i, io, eeprom))
+        adcList.append(AD7124(i, io, eeprom, sns_typ=2))
 
-    # print(f'STATUS={"{0:08b}".format(adcList[n].get_STATUS())}')
+    # print(f'IO_CONTROL_1={"{0:08b}".format(adcList[0].get_IO_CONTROL_1())}')
+
+    adcList[0].get_temperature()
 
     tcpServer = TCPServer('', 9999)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
     transmitter = Transmitter(tcpServer.qXmit)
     
+    #eeprom.printout_eeprom()
     await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
 
 def main(argv=None):

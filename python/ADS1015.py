@@ -19,14 +19,20 @@ class ADS1015Error(IOError):
 class ADS1015:
     def __init__(self, eeprom):
         self.eeprom = eeprom
+
+        self.ADS1015_reg_dict = {
+                                'confAIN_0':    [0x01, int.from_bytes(self.eeprom.ADS1015mem[0:2], byteorder='big'), 2], 
+                                'confAIN_3':    [0x01, int.from_bytes(self.eeprom.ADS1015mem[2:4], byteorder='big'), 2]
+                                }
+
         self.logger = logging.getLogger('smb')
         self.i2cBus = SMBus(BUS_ID)
         self.i2cAddr = DEV_ID
         self.convAddr = 0x00
-        self.confAddr = 0x01
-        self.confAIN_0 = b'\x89\x83'  # AIN0 & AIN1 = 000
-        self.confAIN_3 = b'\xB9\x83'  # AIN2 & AIN3 = 011
-        self.conversionGain = 1 #0.03367
+        self.confAddr = self.ADS1015_reg_dict['confAIN_0'][0]
+        self.confAIN_0 = self.ADS1015_reg_dict['confAIN_0'][1]  # AIN0 & AIN1 = 000
+        self.confAIN_3 = self.ADS1015_reg_dict['confAIN_3'][1]  # AIN2 & AIN3 = 011
+        self.conversionGain = 1     #0.03367
         self.conversionOffset = 0.0
 
     def _write(self, regAddr, data):
@@ -103,9 +109,19 @@ class ADS1015:
 
     # Begin a conversion on the 000 multiplexer config
     def convert_0(self):
-        self._config_write(self.confAIN_0)
+        self._config_write(self.confAIN_0.to_bytes(2, byteorder='big'))
 
     # Begin a conversion on the 011 multiplexer config
     def convert_3(self):
-        self._config_write(self.confAIN_3)
+        self._config_write(self.confAIN_3.to_bytes(2, byteorder='big'))
+
+    def update_eeprom_mem(self):
+        ADSbyteArray = bytearray()
+
+        for reg in self.ADS1015_reg_dict:
+            register = self.ADS1015_reg_dict[reg]
+            regByteArray = register[0].to_bytes(register[1], byteorder='big')
+            ADSbyteArray.extend(regByteArray)
+
+        self.eeprom.ADS1015mem = ADSbyteArray
         
