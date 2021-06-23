@@ -25,4 +25,4 @@ class Transmitter:
                 writer.write(msg.encode())
                 await writer.drain()
             else:
-                self.logger.error(f'Warning: peer disconnected')
+                self.logger.warn(f'Warning: peer disconnected')

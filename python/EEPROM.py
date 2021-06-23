@@ -39,7 +39,7 @@ DEFAULT_DAC_DATA = b'\x00\x00' \
                    b'\x00\x00' \
                    b'\x00\x00'
 
-DEFAULT_ADC_DATA_1 =    b'\x13\x04' \
+DEFAULT_ADC_DATA_1 =    b'\x13\xC4' \
                         b'\x04\x00\x00' \
                         b'\x00\x00' \
                         b'\x00\x00\x40' \
@@ -47,8 +47,8 @@ DEFAULT_ADC_DATA_1 =    b'\x13\x04' \
                         b'\x00\x00' \
                         b'\x01\xE0' \
                         b'\x01\xE0' \
-                        b'\x06\x01\x80' \
-                        b'\x06\x01\x80' \
+                        b'\x16\x07\xFF' \
+                        b'\x16\x07\xFF' \
                         b'\x80\x00\x00' \
                         b'\x80\x00\x00' 
 
@@ -68,10 +68,11 @@ class EEPROMError(IOError):
 
 class EEPROM():
 
-    def __init__(self):
+    def __init__(self, reset=False):
         self.logger = logging.getLogger('smb')
         self.i2cBus = SMBus(BUS_ID)  # 1 = /dev/i2c-1
         self.i2cAddr = DEV_ID   # I2C address of EEPROM = 0x50
+        self.reset = reset
 
         #EEProm memory map
         # DAC byte addresses
@@ -108,6 +109,10 @@ class EEPROM():
         for i in range(2):
             self.HIPWRaddr.append(0x04C0 + 0x20 * i)
 
+        # Reset the EEPROM if initialized with 'reset=True'
+        if self.reset:
+            self.reset_eeprom()
+
         # Check if eeprom has been initialized already
         if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
             self._initialize_eeprom()
@@ -124,8 +129,8 @@ class EEPROM():
         EEPROM_LOADED bit.
         '''
         # for addr in range(1248):
-        #     self.write(addr, b'\x00')
-        self.write(EEPROM_LOADED_ADDR, b'\x00')
+        #     self.write(addr, b'\xff')
+        self.write(EEPROM_LOADED_ADDR, b'\xff')
 
     def _initialize_eeprom(self):
         """

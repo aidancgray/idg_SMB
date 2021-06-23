@@ -54,7 +54,7 @@ class AD7124:
                                 }
 
         if self.idx == 0:
-            self.AD7124_reg_dict['ADC_CONTROL'][1] = 0x1305
+            self.AD7124_reg_dict['ADC_CONTROL'][1] += 1
         
         for n in list(self.AD7124_reg_dict)[0:10]:
             register = self.AD7124_reg_dict[n]
@@ -64,6 +64,7 @@ class AD7124:
             # PT-100
             self.set_excitation_current(3)
             self.set_pga(16)
+            self.set_refin(1)
             self.set_refV('lo')
             self.vref = 0.98
             self.excit_cur = 0.000250
@@ -75,6 +76,7 @@ class AD7124:
             # PT-1000
             self.set_excitation_current(3)
             self.set_pga(2)
+            self.set_refin(1)
             self.set_refV('lo')
             self.vref = 0.98
             self.excit_cur = 0.000250
@@ -82,12 +84,15 @@ class AD7124:
         
         elif self.sns_typ == 3:
             # DIODE
+            # TODO:
+            # Change to internal reference (config reg), vref=2.5, self.excit_cur=1, gain=1(2)
             self.set_excitation_current(1)
-            self.set_pga(1)
+            self.set_pga(2)
+            self.set_refin(2)
             self.set_refV('hi')
-            self.vref = 1.96
-            self.excit_cur = 0.000050
-            self.gain = 1
+            self.vref = 2.5
+            self.excit_cur = 1
+            self.gain = 2
 
     def reset(self):
         data2 = 65535
@@ -291,10 +296,10 @@ class AD7124:
 
     def get_temperature(self):
         data = self.get_DATA()
-        resistance = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
+        dataTmp = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
         # TODO:
         # get calibration
-        temperature = resistance
+        temperature = dataTmp
         
         return temperature
 
@@ -424,6 +429,18 @@ class AD7124:
             config_0 |= (1<<0)
             config_0 |= (1<<1)
             config_0 |= (1<<2)
+        
+        self.set_CONFIG_0(config_0)
+
+    def set_refin(self, val):
+        config_0 = self.get_CONFIG_0()
+        
+        if val == 1:
+            config_0 &=~ (1<<3)
+            config_0 &=~ (1<<4)
+        elif val == 2:
+            config_0 |= (1<<3)
+            config_0 &=~ (1<<4)
         
         self.set_CONFIG_0(config_0)
 

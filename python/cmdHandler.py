@@ -11,6 +11,7 @@
 import logging
 import asyncio
 import time
+import queue
 from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
 from chebyFit import chebyFit
@@ -20,6 +21,7 @@ class CMDLoop:
         self.logger = logging.getLogger('smb')
         self.qCmd = qCmd
         self.qXmit = qXmit
+        self.qUDP = queue.Queue()
         self.eeprom = eeprom
         self.tlm = tlm
         self.cal = cal
@@ -65,11 +67,12 @@ class CMDLoop:
             # Update temperature values every 1 second
             if newTime - tempTime >= 1:
                 for n in range(len(self.adcList)):
-                    temp = self.adcList[n].get_temperature()
-                    self.logger.info(f'res_{n}={temp}')
+                    temp = round(self.adcList[n].get_temperature(), 4)
+                    #self.logger.info(f'res_{n}={temp}')
+                    self.enqueue_udp(f'res_{n}={temp}')
                     self.tlm['adc_int_temp'+str(n+1)] = temp
                 tempTime = time.perf_counter()
-                self.logger.info(f'------------------')
+                #self.logger.info(f'------------------')
 
             ### Check the Command Queue ###
             if not self.qCmd.empty():
@@ -268,6 +271,7 @@ class CMDLoop:
                     # PT-100
                     self.adcList[sns].set_excitation_current(3)
                     self.adcList[sns].set_pga(16)
+                    self.adcList[sns].set_refin(1)
                     self.adcList[sns].set_refV('lo')
                     self.adcList[sns].vref = 0.98
                     self.adcList[sns].excit_cur = 0.000250
@@ -277,6 +281,7 @@ class CMDLoop:
                     # PT-1000
                     self.adcList[sns].set_excitation_current(3)
                     self.adcList[sns].set_pga(2)
+                    self.adcList[sns].set_refin(1)
                     self.adcList[sns].set_refV('lo')
                     self.adcList[sns].vref = 0.98
                     self.adcList[sns].excit_cur = 0.000250
@@ -285,11 +290,12 @@ class CMDLoop:
                 elif p2 == '3':
                     # DIODE
                     self.adcList[sns].set_excitation_current(1)
-                    self.adcList[sns].set_pga(1)
+                    self.adcList[sns].set_pga(2)
+                    self.adcList[sns].set_refin(2)
                     self.adcList[sns].set_refV('hi')
-                    self.adcList[sns].vref = 1.96
-                    self.adcList[sns].excit_cur = 0.000050
-                    self.adcList[sns].gain = 1
+                    self.adcList[sns].vref = 2.5
+                    self.adcList[sns].excit_cur = 1
+                    self.adcList[sns].gain = 2
 
                 retData = 'OK'
 
@@ -477,3 +483,6 @@ class CMDLoop:
 
     async def enqueue_xmit(self, msg):
         await self.qXmit.put(msg)
+
+    def enqueue_udp(self, msg):
+        self.qUDP.put(msg)

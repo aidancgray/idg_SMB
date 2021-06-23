@@ -6,18 +6,15 @@
 #
 # The main script for the Sensor Monitor / Temperature Control Board
 
-from chebyFit import chebyFit
-from EEPROM import EEPROM
-
 import logging
 import sys
 import asyncio
 import argparse
 import shlex
-import time
 
 import GPIO_config
 import Gbl
+from EEPROM import EEPROM
 from DAC8775 import DAC
 from TCPip import TCPServer
 from cmdHandler import CMDLoop
@@ -26,21 +23,21 @@ from BME280 import BME280
 from ADS1015 import ADS1015
 from hi_pwr_htr import hi_pwr_htr
 from AD7124 import AD7124
+from UDPcast import UDPcast
 
 def custom_except_hook(loop, context):
     if repr(context['exception']) == 'SystemExit()':
         print('Exiting Program...')
 
-async def runSMB(logLevel=logging.INFO):
+async def runSMB(opts):
     logging.basicConfig(datefmt = "%Y-%m-%d %H:%M:%S",
                         format = "%(asctime)s.%(msecs)03dZ %(name)-10s %(levelno)s %(filename)s:%(lineno)d %(message)s")
     
     logger = logging.getLogger('smb')
-    logger.setLevel(logLevel)
+    logger.setLevel(opts.logLevel)
     logger.info('starting logging')
 
-    eeprom = EEPROM()  # Read in EEPROM data
-    #eeprom.reset_eeprom()
+    eeprom = EEPROM(reset=True)  # Read in EEPROM data
 
     tlm = Gbl.telemetry  # Telemetry dictionary
     cal = Gbl.sensor_cal # Sensor Calibration dictionary
@@ -66,14 +63,12 @@ async def runSMB(logLevel=logging.INFO):
 
     # print(f'IO_CONTROL_1={"{0:08b}".format(adcList[0].get_IO_CONTROL_1())}')
 
-    adcList[0].get_temperature()
-
     tcpServer = TCPServer('', 9999)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
     transmitter = Transmitter(tcpServer.qXmit)
-    
-    #eeprom.printout_eeprom()
-    await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start())
+    udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)
+
+    await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start(), udpServer.start())
 
 def main(argv=None):
     if argv is None:
@@ -86,12 +81,14 @@ def main(argv=None):
                         help='logging threshold. 10=debug, 20=info, 30=warn')
     parser.add_argument('--sensorPeriod', type=float, default=1.0,
                         help='how often to sample the sensors')
+    parser.add_argument('--udpAddress', type=str, default='192.168.1.255',
+                        help='the UDP broadcast address')
 
     opts = parser.parse_args(argv)
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(custom_except_hook)
     try:
-        loop.run_until_complete(runSMB(logging.INFO))
+        loop.run_until_complete(runSMB(opts))
     except KeyboardInterrupt:
         print('Exiting Program...')
 
