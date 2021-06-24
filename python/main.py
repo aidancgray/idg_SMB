@@ -37,7 +37,7 @@ async def runSMB(opts):
     logger.setLevel(opts.logLevel)
     logger.info('starting logging')
 
-    eeprom = EEPROM(reset=True)  # Read in EEPROM data
+    eeprom = EEPROM(reset=False)  # Read in EEPROM data
 
     tlm = Gbl.telemetry  # Telemetry dictionary
     cal = Gbl.sensor_cal # Sensor Calibration dictionary
@@ -59,9 +59,7 @@ async def runSMB(opts):
 
     adcList = []
     for i in range(12):
-        adcList.append(AD7124(i, io, eeprom, sns_typ=2))
-
-    # print(f'IO_CONTROL_1={"{0:08b}".format(adcList[0].get_IO_CONTROL_1())}')
+        adcList.append(AD7124(i, io, eeprom, cal, sns_typ=2, sns_units='C'))
 
     tcpServer = TCPServer('', 9999)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)

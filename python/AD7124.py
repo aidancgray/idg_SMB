@@ -18,7 +18,7 @@ class AD7124Error(ValueError):
 
 class AD7124:
 
-    def __init__(self, idx, io, eeprom, sns_typ=None, sns_units=None):
+    def __init__(self, idx, io, eeprom, cal, sns_typ=None, sns_units=None):
         if idx < 0 or idx > 11:
             raise AD7124Error("Failed to initialize AD7124. Index out of range.")
         
@@ -26,6 +26,7 @@ class AD7124:
         self.idx = idx  # ADC address
         self.io = io    # GPIO
         self.eeprom = eeprom
+        self.cal_dict = cal
         self.sns_typ = sns_typ
         self.sns_units = sns_units
 
@@ -60,39 +61,7 @@ class AD7124:
             register = self.AD7124_reg_dict[n]
             self.__adc_write_data(register[0], register[1], register[2])
 
-        if self.sns_typ == 1:
-            # PT-100
-            self.set_excitation_current(3)
-            self.set_pga(16)
-            self.set_refin(1)
-            self.set_refV('lo')
-            self.vref = 0.98
-            self.excit_cur = 0.000250
-            self.gain = 16
-
-            #self.calib_fit = polyFit(coeffs=)
-
-        elif self.sns_typ == 2:
-            # PT-1000
-            self.set_excitation_current(3)
-            self.set_pga(2)
-            self.set_refin(1)
-            self.set_refV('lo')
-            self.vref = 0.98
-            self.excit_cur = 0.000250
-            self.gain = 2
-        
-        elif self.sns_typ == 3:
-            # DIODE
-            # TODO:
-            # Change to internal reference (config reg), vref=2.5, self.excit_cur=1, gain=1(2)
-            self.set_excitation_current(1)
-            self.set_pga(2)
-            self.set_refin(2)
-            self.set_refV('hi')
-            self.vref = 2.5
-            self.excit_cur = 1
-            self.gain = 2
+        self.set_sns_typ()
 
     def reset(self):
         data2 = 65535
@@ -228,7 +197,9 @@ class AD7124:
         return returnData
 
     def __reset_conversion_mode(self):
-        self.__adc_write_data(self.AD7124_reg_dict['ADC_CONTROL'][0], self.AD7124_reg_dict['ADC_CONTROL'][1], self.AD7124_reg_dict['ADC_CONTROL'][2])
+        self.__adc_write_data(self.AD7124_reg_dict['ADC_CONTROL'][0],
+                                self.AD7124_reg_dict['ADC_CONTROL'][1],
+                                self.AD7124_reg_dict['ADC_CONTROL'][2])
 
     ### GETTERS ###
     def get_STATUS(self):
@@ -297,9 +268,7 @@ class AD7124:
     def get_temperature(self):
         data = self.get_DATA()
         dataTmp = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
-        # TODO:
-        # get calibration
-        temperature = dataTmp
+        temperature = self.calib_fit.calib_t(dataTmp)
         
         return temperature
 
@@ -453,6 +422,59 @@ class AD7124:
             io_control_1 |= (1<<22)
 
         self.set_IO_CONTROL_1(io_control_1)
+
+    def set_2_4_wire(self, val):
+        io_control_1 = self.get_IO_CONTROL_1()
+        
+        if val == '2':
+            io_control_1 &=~ (1<<15)
+        elif val == '4':
+            io_control_1 |= (1<<15)
+
+        self.set_IO_CONTROL_1(io_control_1)
+
+    def set_sns_typ(self, sns=None):
+        if sns != None:
+            self.sns_typ = sns
+
+        if self.sns_typ == 1:
+            # PT-100
+            self.set_excitation_current(3)
+            self.set_pga(16)
+            self.set_refin(1)
+            self.set_refV('lo')
+            self.vref = 0.98
+            self.excit_cur = 0.000250
+            self.gain = 16
+            calCoeffs = self.cal_dict['PT100']
+
+        elif self.sns_typ == 2:
+            # PT-1000
+            self.set_excitation_current(3)
+            self.set_pga(2)
+            self.set_refin(1)
+            self.set_refV('lo')
+            self.vref = 0.98
+            self.excit_cur = 0.000250
+            self.gain = 2
+            calCoeffs = self.cal_dict['PT1000']
+        
+        elif self.sns_typ == 3:
+            # DIODE
+            self.set_excitation_current(1)
+            self.set_pga(2)
+            self.set_refin(2)
+            self.set_refV('hi')
+            self.vref = 2.5
+            self.excit_cur = 1
+            self.gain = 2
+            calCoeffs = self.cal_dict['DIODE']
+        
+        self.calib_fit = polyFit(coeffs=calCoeffs)
+
+    def set_calibration(self, calData):
+        polyCal = polyFit(calData, 10)
+        self.calib_fit = polyCal
 
     def update_eeprom_mem(self):
         ADCbyteArray = bytearray()

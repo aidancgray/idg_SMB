@@ -14,7 +14,6 @@ import time
 import queue
 from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
-from chebyFit import chebyFit
 
 class CMDLoop:
     def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList):
@@ -61,18 +60,17 @@ class CMDLoop:
 
             ### Temperature Sensor ###
             # TODO: 
-            # - convert readings using Fits
             # - update PID loops in each DAC from dacList
             
             # Update temperature values every 1 second
             if newTime - tempTime >= 1:
                 for n in range(len(self.adcList)):
-                    temp = round(self.adcList[n].get_temperature(), 4)
-                    #self.logger.info(f'res_{n}={temp}')
-                    self.enqueue_udp(f'res_{n}={temp}')
+                    temp = round(self.adcList[n].get_temperature(), 2)
+                    sns_units = self.adcList[n].sns_units
+                    self.enqueue_udp(f'temp_{n+1}={temp}{sns_units}')
                     self.tlm['adc_int_temp'+str(n+1)] = temp
+                
                 tempTime = time.perf_counter()
-                #self.logger.info(f'------------------')
 
             ### Check the Command Queue ###
             if not self.qCmd.empty():
@@ -264,39 +262,8 @@ class CMDLoop:
 
             elif cmd == 'sns_typ':
                 sns = int(p1 - 1)
-                self.adcList[sns].sns_typ = p2
-                
-                # Update ExcitationCurrent/Gain/RefVoltage
-                if p2 == '1':
-                    # PT-100
-                    self.adcList[sns].set_excitation_current(3)
-                    self.adcList[sns].set_pga(16)
-                    self.adcList[sns].set_refin(1)
-                    self.adcList[sns].set_refV('lo')
-                    self.adcList[sns].vref = 0.98
-                    self.adcList[sns].excit_cur = 0.000250
-                    self.adcList[sns].gain = 16
-
-                elif p2 == '2':
-                    # PT-1000
-                    self.adcList[sns].set_excitation_current(3)
-                    self.adcList[sns].set_pga(2)
-                    self.adcList[sns].set_refin(1)
-                    self.adcList[sns].set_refV('lo')
-                    self.adcList[sns].vref = 0.98
-                    self.adcList[sns].excit_cur = 0.000250
-                    self.adcList[sns].gain = 2
-                
-                elif p2 == '3':
-                    # DIODE
-                    self.adcList[sns].set_excitation_current(1)
-                    self.adcList[sns].set_pga(2)
-                    self.adcList[sns].set_refin(2)
-                    self.adcList[sns].set_refV('hi')
-                    self.adcList[sns].vref = 2.5
-                    self.adcList[sns].excit_cur = 1
-                    self.adcList[sns].gain = 2
-
+                sns_typ = int(p2)
+                self.adcList[sns].set_sns_typ(sns_typ)
                 retData = 'OK'
 
             elif cmd == 'sns_units':
@@ -305,7 +272,7 @@ class CMDLoop:
                 retData = 'OK'
             
             elif cmd == 'sns_cal':
-                sensor = p1
+                sns = int(p1 - 1)
                 tmpCalData = p2.split(';')
                 calData = []
 
@@ -315,15 +282,7 @@ class CMDLoop:
                     newPt[1] = float(newPt[1])
                     calData.append(newPt)
 
-                # TODO: convert calData[][0] points from sensor units to bits
-                chebyshevFit = chebyFit(calData, 10)
-                
-                self.adcList[p1-1].calib_fit = chebyshevFit  # add the calibration to the ADC
-
-                # Store the calibration info in the global dict (possibly redundant...)
-                self.cal[sensor]['coeffs'] = chebyshevFit.chebyFit[0]
-                self.cal[sensor]['zl'] = chebyshevFit.chebyFit[1]
-                self.cal[sensor]['zu'] = chebyshevFit.chebyFit[2]
+                self.adcList[sns].set_calibration(calData)
                 retData = 'OK'
 
             elif cmd == 'htr_cur':
@@ -383,7 +342,7 @@ class CMDLoop:
             elif cmd == 'pid_d':
                 intP1 = int(p1 - 1)
                 pid_d = self.dacList[intP1].kd
-                retData = f'pid_d={pid_d!r}'
+                retData = f'pid_d_{int(p1)}={pid_d!r}'
 
             elif cmd == 'hi_pwr':
                 retData = self.hi_pwr_htrs[int(p1)-1].status()
@@ -398,17 +357,18 @@ class CMDLoop:
             elif cmd == 'pid_i':
                 intP1 = int(p1 - 1)
                 pid_i = self.dacList[intP1].ki
-                retData = f'pid_i={pid_i!r}'
+                retData = f'pid_i_{int(p1)}={pid_i!r}'
 
             elif cmd == 'lcs':
                 pass
 
             elif cmd == 'sns_temp':
-                sensor = str(p1)
-                sensor = sensor.split('.')[0]
-                sensorName = 'adc_int_temp'+sensor
-                temp = self.tlm[sensorName]
-                retData = f'sns_temp_{sensor}={temp!r}'
+                sns = str(p1)
+                sns = sns.split('.')[0]
+                snsName = 'adc_int_temp'+sns
+                temp = self.tlm[snsName]
+                sns_units = self.adcList[int(p1)-1].sns_units
+                retData = f'sns_temp_{sns}={temp!r}{sns_units}'
 
             elif cmd == 'htr_ena':
                 pass
@@ -419,7 +379,7 @@ class CMDLoop:
             elif cmd == 'pid_p':
                 intP1 = int(p1 - 1)
                 pid_p = self.dacList[intP1].kp
-                retData = f'pid_p={pid_p!r}'
+                retData = f'pid_p_{int(p1)}={pid_p!r}'
 
             elif cmd == 'adc_filt':
                 pass
@@ -427,12 +387,12 @@ class CMDLoop:
             elif cmd == 'sns_typ':
                 sns = int(p1 - 1)
                 sns_typ = self.adcList[sns].sns_typ
-                retData = f'sns_typ_{sns}={sns_typ}'
+                retData = f'sns_typ_{int(p1)}={sns_typ}'
 
             elif cmd == 'sns_units':
                 sns = int(p1 - 1)
                 sns_units = self.adcList[sns].sns_units
-                retData = f'sns_units_{sns}={sns_units}'
+                retData = f'sns_units_{int(p1)}={sns_units}'
 
             elif cmd == 'htr_cur':
                 if p1 == 1:
