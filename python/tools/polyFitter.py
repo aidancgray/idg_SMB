@@ -101,7 +101,7 @@ def get_data(fileName):
 
 if __name__ == "__main__":
     filePath = None
-    degree = 5
+    degree = 10
     test = 'off'
     plot = 'off'
 
@@ -125,6 +125,7 @@ if __name__ == "__main__":
     if filePath == None:
         sys.exit('ERROR: No calibration data supplied.')
 
+
     if filePath[0] == '~':
         filePath = os.path.expanduser('~')+filePath[1:]
 
@@ -133,6 +134,11 @@ if __name__ == "__main__":
         
         polyFit = polyFit(data, degree)
         print(f'coefficients(low->high)={polyFit.polyFit[0]}')
+
+        # coeffs = [-3.37351458e+02, 1.79897580e+04, -1.57983258e+05, 7.31552361e+05, 
+        #             -2.03985715e+06, 3.60952880e+06, -4.13891300e+06, 3.05966910e+06, 
+        #             -1.40503743e+06, 3.64151783e+05, -4.06729712e+04]
+        # polyFit = polyFit(coeffs=coeffs)
 
         testData = get_data(filePath)
         testResults = []
