@@ -21,6 +21,7 @@ from cmdHandler import CMDLoop
 from transmitter import Transmitter
 from BME280 import BME280
 from ADS1015 import ADS1015
+from pid_htr import pid_htr
 from hi_pwr_htr import hi_pwr_htr
 from AD7124 import AD7124
 from UDPcast import UDPcast
@@ -45,24 +46,24 @@ async def runSMB(opts):
 
     bme280 = BME280(eeprom)  # Onboard Temperature, Pressure, and Humidity Sensor
     ads1015 = ADS1015(eeprom)  # ADS1015
-    hi_pwr_htrs = [hi_pwr_htr(i, io, eeprom) for i in range(2)]
+
+    hi_pwr_htrs = []
+    for i in range (2):
+        hi_pwr_htrs.append(hi_pwr_htr(i, io, eeprom))
 
     dacList = []
-    dac0 = DAC(0, io, eeprom, 'PID')  # initialize DAC0
-    dacList.append(dac0)
-    dac1 = DAC(1, io, eeprom, 'PID')  # initialize DAC1
-    dacList.append(dac1)
-    dac2 = DAC(2, io, eeprom, 'HIPWR')  # initialize DAC2
-    dacList.append(dac2)
-    dac3 = DAC(3, io, eeprom, 'HIPWR')  # initialize DAC3
-    dacList.append(dac3)
+    for i in range(4):
+        dacList.append(DAC(i, io, eeprom, hi_pwr_htrs))
 
     adcList = []
     for i in range(12):
-        adcList.append(AD7124(i, io, eeprom, cal, sns_typ=2, sns_units='C'))
+        adcList.append(AD7124(i, io, eeprom, cal))
+
+    pid_htrs = [pid_htr(i, io, eeprom, dacList) for i in range(4)]
+    
 
     tcpServer = TCPServer('', 9999)
-    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
+    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, pid_htrs, hi_pwr_htrs, dacList, adcList)
     transmitter = Transmitter(tcpServer.qXmit)
     udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)
 

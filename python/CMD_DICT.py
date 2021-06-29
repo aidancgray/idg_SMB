@@ -38,7 +38,7 @@ cmd_set_dict = {
                 'DESC': 'PID Integral I Factor'},
         'lcs': {'P#': 2,
                 'P1_MIN': 1,
-                'P1_MAX': 2,
+                'P1_MAX': 4,
                 'P2_MIN': 1,
                 'P2_MAX': 12,
                 'DESC': 'Loop control sensor #'},
@@ -132,7 +132,7 @@ cmd_get_dict = {
                 'DESC': 'Read PID Integral I Factor'},
         'lcs': {'P#': 1,
                 'P1_MIN': 1,
-                'P1_MAX': 2,
+                'P1_MAX': 4,
                 'RET_MIN': 1,
                 'RET_MAX': 12,
                 'DESC': 'Read Loop control sensor #'},
@@ -201,5 +201,11 @@ cmd_get_dict = {
                 'P1_MAX': None,
                 'RET_MIN': None,
                 'RET_MAX': None,
-                'DESC': 'Get the environment: temperature, pressure, humidity, or all'}
+                'DESC': 'Get the environment: temperature, pressure, humidity, or all'},
+        'eeprom': {'P#': 0,
+                'P1_MIN': None,
+                'P1_MAX': None,
+                'RET_MIN': None,
+                'RET_MAX': None,
+                'DESC': 'Printout all of the eeprom memory map to the logger'}
 }

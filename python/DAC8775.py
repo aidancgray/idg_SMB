@@ -13,13 +13,15 @@ class DACError(ValueError):
 
 class DAC():
 
-    def __init__(self, idx, io, eeprom, mode):
+    def __init__(self, idx, io, eeprom, hi_pwr_htrs):
         if idx < 0 or idx > 3:
             raise DACError("Failed to initialize DAC. Index out of range.")
 
+        self.logger = logging.getLogger('smb')
         self.idx = idx  # DAC address
         self.io = io    # GPIO
         self.eeprom = eeprom
+        self.hi_pwr_htrs = hi_pwr_htrs
 
         self.DAC_reg_dict = {
                             'RESET':        [0x01, int.from_bytes(self.eeprom.DACmem[self.idx][0:2], byteorder='big'), 2],
@@ -37,10 +39,17 @@ class DAC():
                             'ALARM_ACT':    [0x0D, int.from_bytes(self.eeprom.DACmem[self.idx][24:26], byteorder='big'), 2],
                             'ALARM_CODE':   [0x0E, int.from_bytes(self.eeprom.DACmem[self.idx][26:28], byteorder='big'), 2],
                             'WATCHDOG':     [0x10, int.from_bytes(self.eeprom.DACmem[self.idx][28:30], byteorder='big'), 2],
-                            'ID':           [0x11, int.from_bytes(self.eeprom.DACmem[self.idx][30:32], byteorder='big'), 2]
+                            'ID':           [0x11, int.from_bytes(self.eeprom.DACmem[self.idx][30:32], byteorder='big'), 2],
+                            'MODE':         [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][32:34], byteorder='big'), 2],
+                            'SNS_NUM':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][34:36], byteorder='big'), 2],
+                            'SETPOINT':     [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][36:38], byteorder='big'), 2],
+                            'KP':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][38:40], byteorder='big'), 2],
+                            'KI':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][40:42], byteorder='big'), 2],
+                            'KD':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][42:44], byteorder='big'), 2],
+                            'IT':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][44:46], byteorder='big'), 2],
+                            'ETPREV':       [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][46:48], byteorder='big'), 2],
+                            'HTR_NUM':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][48:50], byteorder='big'), 2]
                             }
-
-        self.logger = logging.getLogger('smb')
 
         # GPIO Pins
         self.mosi = self.io.pin_map['SPI1_MOSI']
@@ -51,16 +60,18 @@ class DAC():
         self.mss = self.io.pin_map['nDAC_MSS']
 
         # Heater Parameters
-        self.__set_mode(mode)  # PID, HIPWR, or FIXED
-        self.__set_hysteresis(0)  # Allowable range for HIPWR
-        self.__set_kp(0)  # proportional term
-        self.__set_ki(0)  # integral term
-        self.__set_kd(0)  # derivative term
-        self.__set_it(0)  # total integral term
-        self.__set_setPoint(0)  # setpoint
-        self.__set_etPrev(0) # the previous error value
-        self.__set_controlVar(0)  # control variable
-        self.__set_rebootMode(False)  # False: Reset PID values on reboot
+        self.__set_mode(self.DAC_reg_dict['MODE'][1])           # 0=NONE, 1=PID, 2=HIPWR, or 3=FIXED
+        self.__set_sns_num(self.DAC_reg_dict['SNS_NUM'][1])     # Sensor (AD7124) number (1-12)
+        self.__set_hysteresis(0)                                # Allowable range for HIPWR
+        self.__set_kp(self.DAC_reg_dict['KP'][1])               # proportional term
+        self.__set_ki(self.DAC_reg_dict['KI'][1])               # integral term
+        self.__set_kd(self.DAC_reg_dict['KD'][1])               # derivative term
+        self.__set_it(self.DAC_reg_dict['IT'][1])               # total integral term
+        self.__set_setPoint(self.DAC_reg_dict['SETPOINT'][1])   # setpoint
+        self.__set_etPrev(self.DAC_reg_dict['ETPREV'][1])       # the previous error value
+        self.__set_htr_num(self.DAC_reg_dict['HTR_NUM'][1])     # Heater number (1-4, for both PID and BB heaters)
+        self.__set_controlVar(0)                                # control variable
+        self.__set_rebootMode(False)                            # False: Reset PID values on reboot
 
     """
     DAC Functions: read/write/etc
@@ -175,6 +186,16 @@ class DAC():
 
         return returnData
 
+    def dac_update(self, temp):
+        if self.__mode == 1:
+            self.pid_update(temp)
+        elif self.__mode == 2:
+            self.hipwr_update(temp)
+        elif self.__mode == 3:
+            self.fp_update(temp)
+        else:
+            raise DACError("Invalid mode set. Cannot update DAC.")
+
     def pid_update(self, pv, dt=1):
         """
         Update the PID values. The default functionality assumes PID updates
@@ -239,10 +260,27 @@ class DAC():
         return self.__mode
 
     def __set_mode(self, var):
-        if var == 'PID' or var == 'HIPWR' or var == 'FIXED':
+        if var == 1 or var == 2 or var == 3:
+            self.DAC_reg_dict['MODE'][1] = var
             self.__mode = var
+        elif var == 0:
+            #self.logger.warning('No mode set')
+            pass
         else:
             raise DACError("Failed to initialize DAC. Improper Mode.")
+
+    def __get_sns_num(self):
+        return self.__sns_num
+
+    def __set_sns_num(self, var):
+        if var >= 1 and var <= 12:
+            self.DAC_reg_dict['SNS_NUM'][1] = var
+            self.__sns_num = var
+        elif var == 0:
+            #self.logger.warning('No sensor set')
+            pass
+        else:
+            raise DACError("Failed to set temperature sensor. Must be 1-12.")
 
     def __get_hysteresis(self):
         return self.__hysteresis
@@ -254,24 +292,28 @@ class DAC():
         return self.__kp
 
     def __set_kp(self, var):
+        self.DAC_reg_dict['KP'][1] = var
         self.__kp = var
 
     def __get_ki(self):
         return self.__ki
 
     def __set_ki(self, var):
+        self.DAC_reg_dict['KI'][1] = var
         self.__ki = var
 
     def __get_kd(self):
         return self.__kd
 
     def __set_kd(self, var):
+        self.DAC_reg_dict['KD'][1] = var
         self.__kd = var
 
     def __get_it(self):
         return self.__it
 
     def __set_it(self, var):
+        self.DAC_reg_dict['IT'][1] = var
         self.__it = var        
 
     def __get_setPoint(self):
@@ -280,13 +322,28 @@ class DAC():
     def __set_setPoint(self, var):
         # if var < 0:
         #     raise ValueError("Invalid setpoint.")
+        self.DAC_reg_dict['SETPOINT'][1] = var
         self.__setPoint = var
 
     def __get_etPrev(self):
         return self.__etPrev
 
     def __set_etPrev(self, var):
+        self.DAC_reg_dict['ETPREV'][1] = var
         self.__etPrev = var
+
+    def __get_htr_num(self):
+        return self.__htr_num
+
+    def __set_htr_num(self, var):
+        if var >= 1 and var <= 4:
+            self.DAC_reg_dict['HTR_NUM'][1] = var
+            self.__htr_num = var
+        elif var == 0:
+            #self.logger.warning('No htr set')
+            pass
+        else:
+            raise DACError("Failed to set heater number. Must be 1-4.")
 
     def __get_controlVar(self):
         return self.__controlVar
@@ -301,6 +358,7 @@ class DAC():
         self.__rebootMode = var
 
     mode = property(__get_mode, __set_mode)
+    sns_num = property(__get_sns_num, __set_sns_num)
     hysteresis = property(__get_hysteresis, __set_hysteresis)
     kp = property(__get_kp, __set_kp)
     ki = property(__get_ki, __set_ki)
@@ -308,6 +366,7 @@ class DAC():
     it = property(__get_it, __set_it)
     setPoint = property(__get_setPoint, __set_setPoint)
     etPrev = property(__get_etPrev, __set_etPrev)
+    htr_num = property(__get_htr_num, __set_htr_num)
     controlVar = property(__get_controlVar, __set_controlVar)
     rebootMode = property(__get_rebootMode, __set_rebootMode)
 
@@ -316,7 +375,7 @@ class DAC():
 
         for reg in self.DAC_reg_dict:
             register = self.DAC_reg_dict[reg]
-            regByteArray = register[0].to_bytes(register[1], byteorder='big')
+            regByteArray = register[1].to_bytes(register[2], byteorder='big')
             DACbyteArray.extend(regByteArray)
 
         self.eeprom.DACmem[self.idx] = DACbyteArray

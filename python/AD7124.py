@@ -18,7 +18,7 @@ class AD7124Error(ValueError):
 
 class AD7124:
 
-    def __init__(self, idx, io, eeprom, cal, sns_typ=None, sns_units=None):
+    def __init__(self, idx, io, eeprom, cal):
         if idx < 0 or idx > 11:
             raise AD7124Error("Failed to initialize AD7124. Index out of range.")
         
@@ -27,8 +27,6 @@ class AD7124:
         self.io = io    # GPIO
         self.eeprom = eeprom
         self.cal_dict = cal
-        self.sns_typ = sns_typ
-        self.sns_units = sns_units
 
         # GPIO Pins
         self.mosi = self.io.pin_map['SPI0_MOSI']
@@ -50,8 +48,11 @@ class AD7124:
                                 'FILTER_1':     [0x22, int.from_bytes(self.eeprom.ADCmem[self.idx][21:24], byteorder='big'), 3],
                                 'OFFSET_0':     [0x29, int.from_bytes(self.eeprom.ADCmem[self.idx][24:27], byteorder='big'), 3],
                                 'OFFSET_1':     [0x2A, int.from_bytes(self.eeprom.ADCmem[self.idx][27:30], byteorder='big'), 3],
-                                'GAIN_0':       [0x31, int.from_bytes(self.eeprom.ADCmem[self.idx][30:33], byteorder='big'), 3],
-                                'GAIN_1':       [0x32, int.from_bytes(self.eeprom.ADCmem[self.idx][33:36], byteorder='big'), 3]
+                                'filler':       [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][30:32], byteorder='big'), 2],
+                                'GAIN_0':       [0x31, int.from_bytes(self.eeprom.ADCmem[self.idx][32:35], byteorder='big'), 3],
+                                'GAIN_1':       [0x32, int.from_bytes(self.eeprom.ADCmem[self.idx][35:38], byteorder='big'), 3],
+                                'SNS_TYP':      [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][38:39], byteorder='big'), 1],
+                                'SNS_UNITS':    [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][39:40], byteorder='big'), 1]
                                 }
 
         if self.idx == 0:
@@ -60,6 +61,9 @@ class AD7124:
         for n in list(self.AD7124_reg_dict)[0:10]:
             register = self.AD7124_reg_dict[n]
             self.__adc_write_data(register[0], register[1], register[2])
+
+        self.sns_typ = self.AD7124_reg_dict['SNS_TYP'][1]
+        self.sns_units = self.AD7124_reg_dict['SNS_UNITS'][1]
 
         self.set_sns_typ()
 
@@ -265,10 +269,23 @@ class AD7124:
         io_control_1 = self.get_IO_CONTROL_1()
         return io_control_1 >> 11 & 0b111
 
+    def get_sns_typ(self):
+        return self.sns_typ
+
+    def get_sns_units(self):
+        return self.sns_units
+
     def get_temperature(self):
-        data = self.get_DATA()
-        dataTmp = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
-        temperature = self.calib_fit.calib_t(dataTmp)
+        if self.calib_fit != None:
+            data = self.get_DATA()
+            dataTmp = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
+            temperature = self.calib_fit.calib_t(dataTmp)
+            if self.sns_units == 0:
+                temperature += 273.15
+            elif self.sns_units == 2:
+                temperature = ((temperature * 9) / 5) + 32
+        else:
+            temperature = -999
         
         return temperature
 
@@ -437,6 +454,8 @@ class AD7124:
         if sns != None:
             self.sns_typ = sns
 
+        self.AD7124_reg_dict['SNS_TYP'][1] = self.sns_typ
+
         if self.sns_typ == 1:
             # PT-100
             self.set_excitation_current(3)
@@ -447,6 +466,7 @@ class AD7124:
             self.excit_cur = 0.000250
             self.gain = 16
             calCoeffs = self.cal_dict['PT100']
+            self.calib_fit = polyFit(coeffs=calCoeffs)
 
         elif self.sns_typ == 2:
             # PT-1000
@@ -458,6 +478,7 @@ class AD7124:
             self.excit_cur = 0.000250
             self.gain = 2
             calCoeffs = self.cal_dict['PT1000']
+            self.calib_fit = polyFit(coeffs=calCoeffs)
         
         elif self.sns_typ == 3:
             # DIODE
@@ -469,8 +490,17 @@ class AD7124:
             self.excit_cur = 1
             self.gain = 2
             calCoeffs = self.cal_dict['DIODE']
+            self.calib_fit = polyFit(coeffs=calCoeffs)
         
-        self.calib_fit = polyFit(coeffs=calCoeffs)
+        else:
+            self.calib_fit = None
+
+    def set_sns_units(self, units):
+        if units == 0 or units == 1 or units == 2:
+            self.AD7124_reg_dict['SNS_UNITS'][1] = units
+            self.sns_units = units
+        else:
+            raise AD7124Error("Invalid sensor unit type. Must be 0, 1, 2.")
 
     def set_calibration(self, calData):
         polyCal = polyFit(calData, 10)

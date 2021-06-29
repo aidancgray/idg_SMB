@@ -16,8 +16,12 @@ class hi_pwr_htr():
         self.hi_pwr_en_pin = 0
 
         self.hi_pwr_htr_reg_dict = {
-                                    'HI_PWR_MEM':  [int.from_bytes(self.eeprom.HIPWRmem[self.idx][0:32], byteorder='big'), 32], 
+                                    'SNS_NUM':  [int.from_bytes(self.eeprom.HIPWRmem[self.idx][0:2], byteorder='big'), 2],
+                                    'SETPOINT': [int.from_bytes(self.eeprom.HIPWRmem[self.idx][2:4], byteorder='big'), 2] 
                                     }
+
+        self.sns_num = self.hi_pwr_htr_reg_dict['SNS_NUM'][0]
+        self.setPoint = self.hi_pwr_htr_reg_dict['SETPOINT'][0]
 
         if self.idx == 0:
             self.hi_pwr_en_pin = self.io.pin_map['HI_PWR_EN1']

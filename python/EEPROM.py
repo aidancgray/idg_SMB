@@ -22,22 +22,34 @@ DEV_ID = 0x50
 EEPROM_LOADED_ADDR = 8191
 EEPROM_LOADED_VAL = b'\xAA'
 
-DEFAULT_DAC_DATA = b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x1e\x00' \
-                   b'\x00\x07' \
-                   b'\x0f\xf6' \
-                   b'\x00\x00' \
-                   b'\x00\x0f' \
-                   b'\x00\x01' \
-                   b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00' \
-                   b'\x00\x00'
+DEFAULT_DAC_DATA_1 = b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x1e\x00' \
+                     b'\x00\x07' \
+                     b'\x0f\xf6' \
+                     b'\x00\x00' \
+                     b'\x00\x0f' \
+                     b'\x00\x01' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00'
+
+DEFAULT_DAC_DATA_2 = b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00' \
+                     b'\x00\x00'
+
+DAC_MEM_LENGTH = len(DEFAULT_DAC_DATA_1) + len(DEFAULT_DAC_DATA_2)
 
 DEFAULT_ADC_DATA_1 =    b'\x13\xC4' \
                         b'\x04\x00\x00' \
@@ -50,17 +62,26 @@ DEFAULT_ADC_DATA_1 =    b'\x13\xC4' \
                         b'\x16\x07\xFF' \
                         b'\x16\x07\xFF' \
                         b'\x80\x00\x00' \
-                        b'\x80\x00\x00' 
+                        b'\x80\x00\x00' \
+                        b'\xff\xff'
 
 DEFAULT_ADC_DATA_2 =    b'\x00\x00\x00' \
-                        b'\x00\x00\x00'
+                        b'\x00\x00\x00' \
+                        b'\x00'\
+                        b'\x00'
+
+ADC_MEM_LENGTH = len(DEFAULT_ADC_DATA_1) + len(DEFAULT_ADC_DATA_2)
 
 DEFAULT_ADS1015_DATA =  b'\x89\x83' \
                         b'\xB9\x83'
 
+ADS_MEM_LENGTH = len(DEFAULT_ADS1015_DATA)
+
 DEFAULT_BME280_DATA =   b'\x01' \
                         b'\x27' \
                         b'\x00'
+
+BME_MEM_LENGTH = len(DEFAULT_BME280_DATA)
 
 class EEPROMError(IOError):
     pass
@@ -79,7 +100,7 @@ class EEPROM():
         self.DACmem = []
         self.DACaddr = []
         for i in range(4):
-            self.DACaddr.append(0x20 * i)
+            self.DACaddr.append(0x40 * i)
 
         # ADC byte addresses
         self.ADCmem = []
@@ -128,8 +149,8 @@ class EEPROM():
         Clear out all of the memory in the EEPROM and clear the 
         EEPROM_LOADED bit.
         '''
-        # for addr in range(1248):
-        #     self.write(addr, b'\xff')
+        for addr in range(1248):
+            self.write(addr, b'\xff')
         self.write(EEPROM_LOADED_ADDR, b'\xff')
 
     def _initialize_eeprom(self):
@@ -139,12 +160,13 @@ class EEPROM():
         """
         # Write default values to DAC0-3
         for DAC in self.DACaddr:
-            self.write(DAC, DEFAULT_DAC_DATA)
+            self.write(DAC, DEFAULT_DAC_DATA_1)
+            self.write(DAC+len(DEFAULT_DAC_DATA_1), DEFAULT_DAC_DATA_2)
 
         # Write default values to ADC0-11
         for ADC in self.ADCaddr:
             self.write(ADC, DEFAULT_ADC_DATA_1)
-            self.write(ADC+32, DEFAULT_ADC_DATA_2)
+            self.write(ADC+len(DEFAULT_ADC_DATA_1), DEFAULT_ADC_DATA_2)
 
         # Write default values to ADS1015
         self.write(self.ADS1015addr, DEFAULT_ADS1015_DATA)
@@ -212,17 +234,17 @@ class EEPROM():
 
         # DACs
         for n in range(len(self.DACaddr)):
-            self.DACmem.append(self.read(self.DACaddr[n], 32))
+            self.DACmem.append(self.read(self.DACaddr[n], DAC_MEM_LENGTH))
 
         # AD7124s
         for n in range(len(self.ADCaddr)):
-            self.ADCmem.append(self.read(self.ADCaddr[n], 64))
+            self.ADCmem.append(self.read(self.ADCaddr[n], ADC_MEM_LENGTH))
 
         # ADS1015
-        self.ADS1015mem = self.read(self.ADS1015addr, 32)
+        self.ADS1015mem = self.read(self.ADS1015addr, ADS_MEM_LENGTH)
 
         # BME280
-        self.BME280mem = self.read(self.BME280addr, 32)
+        self.BME280mem = self.read(self.BME280addr, BME_MEM_LENGTH)
         
         # PID Heaters
         for n in range(len(self.PIDaddr)):
@@ -256,14 +278,13 @@ class EEPROM():
 
         # DACs
         for n in range(len(self.DACaddr)):
-            self.write(self.DACaddr[n], self.DACmem[n])
+            self.write(self.DACaddr[n], self.DACmem[n][0:len(DEFAULT_DAC_DATA_1)])
+            self.write(self.DACaddr[n]+len(DEFAULT_DAC_DATA_1), self.DACmem[n][len(DEFAULT_DAC_DATA_1):DAC_MEM_LENGTH])
 
         # AD7124s
         for n in range(len(self.ADCaddr)):
-            # TODO:
-            # - Write 32 bytes then the final 4
-            self.write(self.ADCaddr[n], self.ADCmem[n][0:32])
-            self.write(self.ADCaddr[n]+32, self.ADCmem[n][32:36])
+            self.write(self.ADCaddr[n], self.ADCmem[n][0:len(DEFAULT_ADC_DATA_1)])
+            self.write(self.ADCaddr[n]+len(DEFAULT_ADC_DATA_1), self.ADCmem[n][len(DEFAULT_ADC_DATA_1):ADC_MEM_LENGTH])
 
         # ADS1015
         self.write(self.ADS1015addr, self.ADS1015mem)
@@ -278,3 +299,5 @@ class EEPROM():
         # HI-PWR (Bang-Bang) Heaters
         for n in range(len(self.HIPWRaddr)):
             self.write(self.HIPWRaddr[n], self.HIPWRmem[n])
+
+        self.readout_eeprom()

@@ -120,7 +120,7 @@ class ADS1015:
 
         for reg in self.ADS1015_reg_dict:
             register = self.ADS1015_reg_dict[reg]
-            regByteArray = register[0].to_bytes(register[1], byteorder='big')
+            regByteArray = register[1].to_bytes(register[2], byteorder='big')
             ADSbyteArray.extend(regByteArray)
 
         self.eeprom.ADS1015mem = ADSbyteArray

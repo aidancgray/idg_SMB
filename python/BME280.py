@@ -272,7 +272,7 @@ class BME280:
 
         for reg in self.BME280_reg_dict:
             register = self.BME280_reg_dict[reg]
-            regByteArray = register[0].to_bytes(register[1], byteorder='big')
+            regByteArray = register[1].to_bytes(register[2], byteorder='big')
             BMEbyteArray.extend(regByteArray)
 
         self.eeprom.BME280mem = BMEbyteArray

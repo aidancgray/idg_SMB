@@ -16,7 +16,7 @@ from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
 
 class CMDLoop:
-    def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList):
+    def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, pid_htrs, hi_pwr_htrs, dacList, adcList):
         self.logger = logging.getLogger('smb')
         self.qCmd = qCmd
         self.qXmit = qXmit
@@ -27,6 +27,7 @@ class CMDLoop:
         self.io = io
         self.bme280 = bme280
         self.ads1015 = ads1015
+        self.pid_htrs = pid_htrs
         self.hi_pwr_htrs = hi_pwr_htrs
         self.dacList = dacList
         self.adcList = adcList
@@ -59,17 +60,35 @@ class CMDLoop:
                     self.ads1015.convert_0()
 
             ### Temperature Sensor ###
-            # TODO: 
-            # - update PID loops in each DAC from dacList
-            
             # Update temperature values every 1 second
             if newTime - tempTime >= 1:
                 for n in range(len(self.adcList)):
                     temp = round(self.adcList[n].get_temperature(), 2)
-                    sns_units = self.adcList[n].sns_units
-                    self.enqueue_udp(f'temp_{n+1}={temp}{sns_units}')
+                    if temp == -999:
+                        temp = '---'
+                    
+                    sns_unitsTmp = self.adcList[n].sns_units
+
+                    if sns_unitsTmp == 0:
+                        sns_units = 'K'
+                    elif sns_unitsTmp == 1:
+                        sns_units = 'C'
+                    elif sns_unitsTmp == 2:
+                        sns_units = 'F'
+                    else:
+                        raise ValueError(f"Unknown Sensor Units:{sns_unitsTmp} 0=K, 1=C, 2=F")
+                    
+                    m = f'{n+1:02d}'
+                    self.enqueue_udp(f'temp_{m}={temp}{sns_units}')
                     self.tlm['adc_int_temp'+str(n+1)] = temp
                 
+                # Update Heater loops in each DAC
+                # for dac in self.dacList:
+                #     # Ensure mode and sensor number are specified
+                #     if dac.sns_num != 0 and dac.mode != 0:
+                #         temp = self.tlm['adc_int_temp'+str(dac.sns_num)]
+                #         dac.dac_update(temp)
+
                 tempTime = time.perf_counter()
 
             ### Check the Command Queue ###
@@ -268,7 +287,7 @@ class CMDLoop:
 
             elif cmd == 'sns_units':
                 sns = int(p1 - 1)
-                self.adcList[sns].sns_units = p2
+                self.adcList[sns].set_sns_units(int(p2))
                 retData = 'OK'
             
             elif cmd == 'sns_cal':
@@ -296,6 +315,25 @@ class CMDLoop:
             elif cmd == 'excit':
                 intP1 = int(p1 - 1)
                 self.adcList[intP1].set_excitation_current(p2)
+                retData = 'OK'
+
+            elif cmd == 'update_eeprom':
+                for dac in self.dacList:
+                    dac.update_eeprom_mem()
+                
+                for adc in self.adcList:
+                    adc.update_eeprom_mem()
+
+                self.ads1015.update_eeprom_mem()
+                self.bme280.update_eeprom_mem()
+
+                # for htr in self.pid_htrs:
+                #     htr.update_eeprom_mem()
+
+                for htr in self.hi_pwr_htrs:
+                    htr.update_eeprom_mem()
+
+                self.eeprom.fill_eeprom()
                 retData = 'OK'
 
             else:
@@ -424,6 +462,10 @@ class CMDLoop:
                 else:
                     retData = f'BAD,command failure: unknown arg {p1!r}'
 
+            elif cmd == 'eeprom':
+                self.eeprom.printout_eeprom()
+                retData = 'printing eeprom memory map to logger.'
+            
             else:
                 retData = f'BAD,command failure: unknown command {cmd!r}'
                 self.logger.error(retData)
