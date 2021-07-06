@@ -5,15 +5,21 @@
 #
 # Class for a DAC module. This board consists of four (4) DACs. 
 
+from AD7124 import AD7124Error
 import RPi.GPIO as GPIO
 import logging
+import numpy as np
+import struct
+
+MAX_VOLTAGE = 28 # Volts
+MAX_CURRENT = 0.096 # Amps (24mA per channel)
 
 class DACError(ValueError):
     pass
 
 class DAC():
 
-    def __init__(self, idx, io, eeprom, hi_pwr_htrs):
+    def __init__(self, idx, io, eeprom, tlm):
         if idx < 0 or idx > 3:
             raise DACError("Failed to initialize DAC. Index out of range.")
 
@@ -21,7 +27,9 @@ class DAC():
         self.idx = idx  # DAC address
         self.io = io    # GPIO
         self.eeprom = eeprom
-        self.hi_pwr_htrs = hi_pwr_htrs
+        self.tlm = tlm
+        self.max_current = None
+        self.power = None
 
         self.DAC_reg_dict = {
                             'RESET':        [0x01, int.from_bytes(self.eeprom.DACmem[self.idx][0:2], byteorder='big'), 2],
@@ -42,13 +50,12 @@ class DAC():
                             'ID':           [0x11, int.from_bytes(self.eeprom.DACmem[self.idx][30:32], byteorder='big'), 2],
                             'MODE':         [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][32:34], byteorder='big'), 2],
                             'SNS_NUM':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][34:36], byteorder='big'), 2],
-                            'SETPOINT':     [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][36:38], byteorder='big'), 2],
-                            'KP':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][38:40], byteorder='big'), 2],
-                            'KI':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][40:42], byteorder='big'), 2],
-                            'KD':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][42:44], byteorder='big'), 2],
-                            'IT':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][44:46], byteorder='big'), 2],
-                            'ETPREV':       [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][46:48], byteorder='big'), 2],
-                            'HTR_NUM':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][48:50], byteorder='big'), 2]
+                            'SETPOINT':     [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][36:40], byteorder='big'), 4],
+                            'KP':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][40:44], byteorder='big'), 4],
+                            'KI':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][44:48], byteorder='big'), 4],
+                            'KD':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][48:52], byteorder='big'), 4],
+                            'HTR_RES':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][52:56], byteorder='big'), 4],
+                            'HYSTERESIS':   [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][60:64], byteorder='big'), 4]
                             }
 
         # GPIO Pins
@@ -60,18 +67,18 @@ class DAC():
         self.mss = self.io.pin_map['nDAC_MSS']
 
         # Heater Parameters
-        self.__set_mode(self.DAC_reg_dict['MODE'][1])           # 0=NONE, 1=PID, 2=HIPWR, or 3=FIXED
-        self.__set_sns_num(self.DAC_reg_dict['SNS_NUM'][1])     # Sensor (AD7124) number (1-12)
-        self.__set_hysteresis(0)                                # Allowable range for HIPWR
-        self.__set_kp(self.DAC_reg_dict['KP'][1])               # proportional term
-        self.__set_ki(self.DAC_reg_dict['KI'][1])               # integral term
-        self.__set_kd(self.DAC_reg_dict['KD'][1])               # derivative term
-        self.__set_it(self.DAC_reg_dict['IT'][1])               # total integral term
-        self.__set_setPoint(self.DAC_reg_dict['SETPOINT'][1])   # setpoint
-        self.__set_etPrev(self.DAC_reg_dict['ETPREV'][1])       # the previous error value
-        self.__set_htr_num(self.DAC_reg_dict['HTR_NUM'][1])     # Heater number (1-4, for both PID and BB heaters)
-        self.__set_controlVar(0)                                # control variable
-        self.__set_rebootMode(False)                            # False: Reset PID values on reboot
+        self.__set_mode(self.DAC_reg_dict['MODE'][1])                               # 0=DISABLED, 1=Fixed%, 2=PID, or 3=HIPWR
+        self.__set_sns_num(self.DAC_reg_dict['SNS_NUM'][1])                         # Sensor (AD7124) number (1-12)
+        self.__set_kp(self.int_to_float(self.DAC_reg_dict['KP'][1]))                # proportional term
+        self.__set_ki(self.int_to_float(self.DAC_reg_dict['KI'][1]))                # integral term
+        self.__set_kd(self.int_to_float(self.DAC_reg_dict['KD'][1]))                # derivative term
+        self.__set_it(0)                                                            # total integral term
+        self.__set_etPrev(0)                                                        # the previous error value
+        self.__set_setPoint(self.int_to_float(self.DAC_reg_dict['SETPOINT'][1]))    # setpoint
+        self.__set_htr_res(self.int_to_float(self.DAC_reg_dict['HTR_RES'][1]))      # Heater resistance
+        self.__set_hysteresis(self.int_to_float(self.DAC_reg_dict['HYSTERESIS'][1]))  # Allowable range for HIPWR
+        self.__set_controlVar(0)                                                    # control variable
+        self.__set_rebootMode(False)                                                # False: Reset PID values on reboot
 
     """
     DAC Functions: read/write/etc
@@ -186,17 +193,17 @@ class DAC():
 
         return returnData
 
-    def dac_update(self, temp):
-        if self.__mode == 1:
-            self.pid_update(temp)
-        elif self.__mode == 2:
-            self.hipwr_update(temp)
+    def dac_update(self, temp, units):
+        if self.__mode == 2:
+            self.pid_update(temp, units)
         elif self.__mode == 3:
-            self.fp_update(temp)
+            self.hipwr_update(temp, units)
+        elif self.__mode == 1:
+            self.fp_update(temp, units)
         else:
             raise DACError("Invalid mode set. Cannot update DAC.")
 
-    def pid_update(self, pv, dt=1):
+    def pid_update(self, pv, units, dt=1):
         """
         Update the PID values. The default functionality assumes PID updates
         are occurring at 1Hz. If this frequency is changed, you must pass the 
@@ -208,14 +215,55 @@ class DAC():
         - dt: change in time (default 1s)
         """
 
-        et = self.setPoint - pv # calculate e(t)
+        # Convert to Kelvin (0=K, 1=C, 2=F)
+        if units == 0:
+            pv = pv
+        elif units == 1:
+            pv += 273.15
+        elif units == 2:
+            pv = ((pv - 32) * (5 / 9)) + 273.15
+        else:
+            raise AD7124Error("Invalid units. Cannot update DAC.")
+
+        # Convert Setpoint to Kelvin
+        spUnits = self.tlm['sns_temp_'+str(self.sns_num)]
+        if spUnits == 'K':
+            setPointK = self.setPoint
+        elif units == 1:
+            setPointK = self.setPoint + 273.15
+        elif units == 2:
+            setPointK = ((self.setPoint - 32) * (5 / 9)) + 273.15
+        else:
+            raise AD7124Error("Invalid units. Cannot update DAC.")
+
+        et = setPointK - pv # calculate e(t)
         d_et = ( et - self.etPrev ) / dt  # calculate de(t)/dt
         self.it += ( et * dt )  # add to the integral term
         self.etPrev = et  # set the previous error term (for next time)
 
         # calculate the new control variable
-        self.controlVar = ( self.kp * et ) + ( self.ki * self.it ) + ( self.kd * d_et )
+        controlVarTmp = ( self.kp * et ) + ( self.ki * self.it ) + ( self.kd * d_et )
+        self.power = controlVarTmp
+
+        # convert control variable (power) to current
+        self.controlVar = self.power_to_current(controlVarTmp)
+
         self.write_control_var(self.controlVar)
+
+    def power_to_current(self, power):
+        # Maximum current is set by the maximum voltage and the heater's resistance
+        self.max_current = MAX_VOLTAGE / self.htr_res
+        if self.max_current > MAX_CURRENT:
+            self.max_current = MAX_CURRENT
+
+        current = np.sqrt(power / self.htr_res)
+        
+        if current < 0:
+            current = 0.0
+        elif current > self.max_current:
+            current = self.max_current
+        
+        return current
 
     def write_control_var(self, cv):
         """
@@ -229,21 +277,24 @@ class DAC():
         - cv: float
         """
 
-        controlVar_t = cv  # temporary variable
+        controlVar_t = int((cv / self.max_current) * 2**18) # Current in the range of 0 - 2**18
+        #print(f'current={cv}, max_cur={self.max_current}, cv={controlVar_t}')
         DSDO_bit = 2**4  # set Disable SDO bit
 
         # 4 channels: A, B, C, D
         # We load each to max, then spill over into the next channel.
         channelList = [0, 0, 0, 0]  
         for i in range(len(channelList)):
-            if controlVar_t > 2**16:
-                channelList[i] = 2**16
-                controlVar_t -= 2**16
+            if controlVar_t >= 2**16:
+                channelList[i] = 2**16 - 1
+                controlVar_t = controlVar_t - 2**16 - 1
             else:
                 channelList[i] = controlVar_t
                 controlVar_t = 0
 
             channelSelect = DSDO_bit | 2**(5+i)
+            #print(f'channelSelect={channelSelect}')
+            print(f'channelList{i}={channelList[i]}')
             self.dac_write_data(0x03, channelSelect)  # Select each channel
             self.dac_write_data(0x05, channelList[i])  # Write to the channel
 
@@ -251,6 +302,15 @@ class DAC():
         self.io.dac_ldac(1)
         self.io.dac_ldac(0)
         self.io.dac_ldac(1)
+
+    def float_to_int(self, f):
+        i = int.from_bytes(bytearray(struct.pack(">f", f)), byteorder='big')
+        return i
+
+    def int_to_float(self, i):
+        fTmp = struct.unpack(">f", i.to_bytes(4, byteorder='big'))
+        f= fTmp[0]
+        return f
 
     """
     Getters and Setters for a bunch of properties.
@@ -260,12 +320,9 @@ class DAC():
         return self.__mode
 
     def __set_mode(self, var):
-        if var == 1 or var == 2 or var == 3:
+        if var == 1 or var == 2 or var == 3 or var == 0:
             self.DAC_reg_dict['MODE'][1] = var
             self.__mode = var
-        elif var == 0:
-            #self.logger.warning('No mode set')
-            pass
         else:
             raise DACError("Failed to initialize DAC. Improper Mode.")
 
@@ -278,7 +335,7 @@ class DAC():
             self.__sns_num = var
         elif var == 0:
             #self.logger.warning('No sensor set')
-            pass
+            self.__sns_num = var
         else:
             raise DACError("Failed to set temperature sensor. Must be 1-12.")
 
@@ -286,34 +343,34 @@ class DAC():
         return self.__hysteresis
 
     def __set_hysteresis(self, var):
+        self.DAC_reg_dict['HYSTERESIS'][1] = self.float_to_int(var)
         self.__hysteresis = var
 
     def __get_kp(self):
         return self.__kp
 
     def __set_kp(self, var):
-        self.DAC_reg_dict['KP'][1] = var
+        self.DAC_reg_dict['KP'][1] = self.float_to_int(var)
         self.__kp = var
 
     def __get_ki(self):
         return self.__ki
 
     def __set_ki(self, var):
-        self.DAC_reg_dict['KI'][1] = var
+        self.DAC_reg_dict['KI'][1] = self.float_to_int(var)
         self.__ki = var
 
     def __get_kd(self):
         return self.__kd
 
     def __set_kd(self, var):
-        self.DAC_reg_dict['KD'][1] = var
+        self.DAC_reg_dict['KD'][1] = self.float_to_int(var)
         self.__kd = var
 
     def __get_it(self):
         return self.__it
 
     def __set_it(self, var):
-        self.DAC_reg_dict['IT'][1] = var
         self.__it = var        
 
     def __get_setPoint(self):
@@ -322,28 +379,27 @@ class DAC():
     def __set_setPoint(self, var):
         # if var < 0:
         #     raise ValueError("Invalid setpoint.")
-        self.DAC_reg_dict['SETPOINT'][1] = var
+        self.DAC_reg_dict['SETPOINT'][1] = self.float_to_int(var)
         self.__setPoint = var
 
     def __get_etPrev(self):
         return self.__etPrev
 
     def __set_etPrev(self, var):
-        self.DAC_reg_dict['ETPREV'][1] = var
         self.__etPrev = var
 
-    def __get_htr_num(self):
-        return self.__htr_num
+    def __get_htr_res(self):
+        return self.__htr_res
 
-    def __set_htr_num(self, var):
-        if var >= 1 and var <= 4:
-            self.DAC_reg_dict['HTR_NUM'][1] = var
-            self.__htr_num = var
+    def __set_htr_res(self, var):
+        if var >= 1 and var <= 2**16:
+            self.DAC_reg_dict['HTR_RES'][1] = self.float_to_int(var)
+            self.__htr_res = var
         elif var == 0:
-            #self.logger.warning('No htr set')
-            pass
+            #self.logger.warning('No heater resistance set')
+            self.__htr_res = var
         else:
-            raise DACError("Failed to set heater number. Must be 1-4.")
+            raise DACError("Failed to set heater resistance. Must be 1-65536.")
 
     def __get_controlVar(self):
         return self.__controlVar
@@ -366,7 +422,7 @@ class DAC():
     it = property(__get_it, __set_it)
     setPoint = property(__get_setPoint, __set_setPoint)
     etPrev = property(__get_etPrev, __set_etPrev)
-    htr_num = property(__get_htr_num, __set_htr_num)
+    htr_res = property(__get_htr_res, __set_htr_res)
     controlVar = property(__get_controlVar, __set_controlVar)
     rebootMode = property(__get_rebootMode, __set_rebootMode)
 

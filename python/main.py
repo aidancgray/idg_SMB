@@ -49,25 +49,25 @@ async def runSMB(opts):
 
     hi_pwr_htrs = []
     for i in range (2):
-        hi_pwr_htrs.append(hi_pwr_htr(i, io, eeprom))
+        hi_pwr_htrs.append(hi_pwr_htr(i, io, eeprom, tlm))
 
     dacList = []
-    for i in range(4):
-        dacList.append(DAC(i, io, eeprom, hi_pwr_htrs))
+    for i in range(2):
+        dacList.append(DAC(i, io, eeprom, tlm))
 
-    adcList = []
-    for i in range(12):
-        adcList.append(AD7124(i, io, eeprom, cal))
+    print(f'id={dacList[0].dac_read_data(0x11)}')
+    print(f'data={dacList[0].dac_read_data(0x05)}')
 
-    pid_htrs = [pid_htr(i, io, eeprom, dacList) for i in range(4)]
-    
+    # adcList = []
+    # for i in range(12):
+    #     adcList.append(AD7124(i, io, eeprom, tlm, cal))
 
-    tcpServer = TCPServer('', 9999)
-    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, pid_htrs, hi_pwr_htrs, dacList, adcList)
-    transmitter = Transmitter(tcpServer.qXmit)
-    udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)
+    # tcpServer = TCPServer('', 9999)
+    # cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
+    # transmitter = Transmitter(tcpServer.qXmit)
+    # udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)
 
-    await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start(), udpServer.start())
+    # await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start(), udpServer.start())
 
 def main(argv=None):
     if argv is None:

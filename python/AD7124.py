@@ -18,7 +18,7 @@ class AD7124Error(ValueError):
 
 class AD7124:
 
-    def __init__(self, idx, io, eeprom, cal):
+    def __init__(self, idx, io, eeprom, tlm, cal):
         if idx < 0 or idx > 11:
             raise AD7124Error("Failed to initialize AD7124. Index out of range.")
         
@@ -26,6 +26,7 @@ class AD7124:
         self.idx = idx  # ADC address
         self.io = io    # GPIO
         self.eeprom = eeprom
+        self.tlm = tlm
         self.cal_dict = cal
 
         # GPIO Pins
@@ -63,7 +64,8 @@ class AD7124:
             self.__adc_write_data(register[0], register[1], register[2])
 
         self.sns_typ = self.AD7124_reg_dict['SNS_TYP'][1]
-        self.sns_units = self.AD7124_reg_dict['SNS_UNITS'][1]
+        
+        self.set_sns_units(self.AD7124_reg_dict['SNS_UNITS'][1])
 
         self.set_sns_typ()
 
@@ -499,6 +501,17 @@ class AD7124:
         if units == 0 or units == 1 or units == 2:
             self.AD7124_reg_dict['SNS_UNITS'][1] = units
             self.sns_units = units
+
+            if units == 0:
+                sns_units = 'K'
+            elif units == 1:
+                sns_units = 'C'
+            elif units == 2:
+                sns_units = 'F'
+            else:
+                raise ValueError(f"Unknown Sensor Units:{units} 0=K, 1=C, 2=F")
+
+            self.tlm['sns_temp_'+str(self.idx+1)] = sns_units
         else:
             raise AD7124Error("Invalid sensor unit type. Must be 0, 1, 2.")
 

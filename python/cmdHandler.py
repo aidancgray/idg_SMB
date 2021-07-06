@@ -16,7 +16,7 @@ from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
 
 class CMDLoop:
-    def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, pid_htrs, hi_pwr_htrs, dacList, adcList):
+    def __init__(self, qCmd, qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList):
         self.logger = logging.getLogger('smb')
         self.qCmd = qCmd
         self.qXmit = qXmit
@@ -27,7 +27,6 @@ class CMDLoop:
         self.io = io
         self.bme280 = bme280
         self.ads1015 = ads1015
-        self.pid_htrs = pid_htrs
         self.hi_pwr_htrs = hi_pwr_htrs
         self.dacList = dacList
         self.adcList = adcList
@@ -80,14 +79,37 @@ class CMDLoop:
                     
                     m = f'{n+1:02d}'
                     self.enqueue_udp(f'temp_{m}={temp}{sns_units}')
-                    self.tlm['adc_int_temp'+str(n+1)] = temp
+                    self.tlm['sns_temp_'+str(n+1)] = temp
                 
-                # Update Heater loops in each DAC
-                # for dac in self.dacList:
-                #     # Ensure mode and sensor number are specified
-                #     if dac.sns_num != 0 and dac.mode != 0:
-                #         temp = self.tlm['adc_int_temp'+str(dac.sns_num)]
-                #         dac.dac_update(temp)
+                # Update DAC Heaters
+                for dac in self.dacList:
+                    # Ensure mode and sensor number are specified
+                    if dac.sns_num != 0 and dac.mode != 0:
+                        temp = self.tlm['sns_temp_'+str(dac.sns_num)]
+                        sns_unitsTmp = self.adcList[dac.sns_num-1].get_sns_units()
+                        if sns_unitsTmp == 0:
+                            sns_units = 'K'
+                        elif sns_unitsTmp == 1:
+                            sns_units = 'C'
+                        elif sns_unitsTmp == 2:
+                            sns_units = 'F'
+                        else:
+                            raise ValueError(f"Unknown Sensor Units:{sns_unitsTmp} 0=K, 1=C, 2=F")
+
+                        setpoint = dac.setPoint
+                        power = dac.power
+                        self.enqueue_udp(f'DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}')
+                        dac.dac_update(temp, sns_unitsTmp)
+                        print(f'id={dac.dac_read_data(0x11)}')
+                        print(f'data={dac.dac_read_data(0x05)}')
+
+                # Update Hi-Power Heaters
+                for htr in self.hi_pwr_htrs:
+                    if htr.mode == 2:
+                        temp = self.tlm['sns_temp_'+str(htr.sns_num)]
+                        units = self.adcList[htr.sns_num-1].get_sns_units()
+                        self.logger.info(f'HIPWR_{htr.idx}: temp={temp}, units={units}')
+                        # htr.update_htr(temp, units)
 
                 tempTime = time.perf_counter()
 
@@ -266,10 +288,14 @@ class CMDLoop:
                 retData = 'OK'
 
             elif cmd == 'lcs':
-                pass
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].sns_num = int(p2)
+                retData = 'OK'
 
             elif cmd == 'htr_ena':
-                pass
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].mode = int(p2)
+                retData = 'OK'
 
             elif cmd == 'pid_p':
                 intP1 = int(p1 - 1)
@@ -286,9 +312,19 @@ class CMDLoop:
                 retData = 'OK'
 
             elif cmd == 'sns_units':
-                sns = int(p1 - 1)
-                self.adcList[sns].set_sns_units(int(p2))
                 retData = 'OK'
+                sns = int(p1 - 1)
+                if p2 == 'K':
+                    units = 0
+                    self.adcList[sns].set_sns_units(units)
+                elif p2 == 'C':
+                    units = 1
+                    self.adcList[sns].set_sns_units(units)
+                elif p2 == 'F':
+                    units = 2
+                    self.adcList[sns].set_sns_units(units)
+                else:
+                    retData = 'BAD: Units must be K, C, F.'
             
             elif cmd == 'sns_cal':
                 sns = int(p1 - 1)
@@ -306,6 +342,11 @@ class CMDLoop:
 
             elif cmd == 'htr_cur':
                 pass
+
+            elif cmd == 'htr_res':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].htr_res = p2
+                retData = 'OK'
 
             elif cmd == 'setpoint':
                 intP1 = int(p1 - 1)
@@ -398,18 +439,22 @@ class CMDLoop:
                 retData = f'pid_i_{int(p1)}={pid_i!r}'
 
             elif cmd == 'lcs':
-                pass
+                intP1 = int(p1 - 1)
+                sns_num = self.dacList[intP1].sns_num
+                retData = f'lcs_{int(p1)}={sns_num!r}'
 
             elif cmd == 'sns_temp':
                 sns = str(p1)
                 sns = sns.split('.')[0]
-                snsName = 'adc_int_temp'+sns
+                snsName = 'sns_temp_'+sns
                 temp = self.tlm[snsName]
                 sns_units = self.adcList[int(p1)-1].sns_units
                 retData = f'sns_temp_{sns}={temp!r}{sns_units}'
 
             elif cmd == 'htr_ena':
-                pass
+                intP1 = int(p1 - 1)
+                mode = self.dacList[intP1].mode
+                retData = f'htr_ena_{int(p1)}={mode!r}'
             
             elif cmd == 'sw_rev':
                 pass
@@ -430,7 +475,13 @@ class CMDLoop:
             elif cmd == 'sns_units':
                 sns = int(p1 - 1)
                 sns_units = self.adcList[sns].sns_units
-                retData = f'sns_units_{int(p1)}={sns_units}'
+                if sns_units == 0:
+                    units = 'K'
+                elif sns_units == 1:
+                    units = 'C'
+                elif sns_units == 2:
+                    units = 'F'
+                retData = f'sns_units_{int(p1)}={units}'
 
             elif cmd == 'htr_cur':
                 if p1 == 1:
@@ -444,6 +495,11 @@ class CMDLoop:
                 intP1 = int(p1 - 1)
                 setpoint = self.dacList[intP1].setPoint
                 retData = f'setpoint={setpoint!r}'
+
+            elif cmd == 'htr_res':
+                intP1 = int(p1 - 1)
+                htr_res = self.dacList[intP1].htr_res
+                retData = f'htr_res={htr_res!r}'
 
             elif cmd == 'excit':
                 intP1 = int(p1 - 1)

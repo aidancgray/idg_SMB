@@ -26,7 +26,7 @@ DEFAULT_DAC_DATA_1 = b'\x00\x00' \
                      b'\x00\x00' \
                      b'\x1e\x00' \
                      b'\x00\x07' \
-                     b'\x0f\xf6' \
+                     b'\x00\x00' \
                      b'\x00\x00' \
                      b'\x00\x0f' \
                      b'\x00\x01' \
@@ -41,13 +41,13 @@ DEFAULT_DAC_DATA_1 = b'\x00\x00' \
 
 DEFAULT_DAC_DATA_2 = b'\x00\x00' \
                      b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00'
+                     b'\x00\x00\x00\x00' \
+                     b'\x00\x00\x00\x00' \
+                     b'\x00\x00\x00\x00' \
+                     b'\x00\x00\x00\x00' \
+                     b'\x00\x00\x00\x00' \
+                     b'\x00\x00\x00\x00' \
+                     b'\x00\x00\x00\x00'
 
 DAC_MEM_LENGTH = len(DEFAULT_DAC_DATA_1) + len(DEFAULT_DAC_DATA_2)
 
@@ -82,6 +82,12 @@ DEFAULT_BME280_DATA =   b'\x01' \
                         b'\x00'
 
 BME_MEM_LENGTH = len(DEFAULT_BME280_DATA)
+
+DEFAULT_HIPWR_DATA =    b'\x00' \
+                        b'\x00' \
+                        b'\x00\x00\x00\x00'
+
+HIPWR_MEM_LENGTH = len(DEFAULT_HIPWR_DATA)
 
 class EEPROMError(IOError):
     pass
@@ -174,6 +180,10 @@ class EEPROM():
         # Write default values to BME280
         self.write(self.BME280addr, DEFAULT_BME280_DATA)
 
+        # Write default values to HIPWR0-1
+        for hipwr in self.HIPWRaddr:
+            self.write(hipwr, DEFAULT_HIPWR_DATA)
+
         # Set the check byte
         self.write(EEPROM_LOADED_ADDR, EEPROM_LOADED_VAL)
 
@@ -233,26 +243,32 @@ class EEPROM():
         """
 
         # DACs
+        self.DACmem = []
         for n in range(len(self.DACaddr)):
             self.DACmem.append(self.read(self.DACaddr[n], DAC_MEM_LENGTH))
 
         # AD7124s
+        self.ADCmem = []
         for n in range(len(self.ADCaddr)):
             self.ADCmem.append(self.read(self.ADCaddr[n], ADC_MEM_LENGTH))
 
         # ADS1015
+        self.ADS1015mem = []
         self.ADS1015mem = self.read(self.ADS1015addr, ADS_MEM_LENGTH)
 
         # BME280
+        self.BME280mem = []
         self.BME280mem = self.read(self.BME280addr, BME_MEM_LENGTH)
         
         # PID Heaters
+        self.PIDmem = []
         for n in range(len(self.PIDaddr)):
             self.PIDmem.append(self.read(self.PIDaddr[n], 32))
 
         # HI-PWR (Bang-Bang) Heaters
+        self.HIPWRmem = []
         for n in range(len(self.HIPWRaddr)):
-            self.HIPWRmem.append(self.read(self.HIPWRaddr[n], 32))
+            self.HIPWRmem.append(self.read(self.HIPWRaddr[n], HIPWR_MEM_LENGTH))
 
     def printout_eeprom(self):
         for n in range(len(self.DACmem)):
@@ -298,6 +314,6 @@ class EEPROM():
 
         # HI-PWR (Bang-Bang) Heaters
         for n in range(len(self.HIPWRaddr)):
-            self.write(self.HIPWRaddr[n], self.HIPWRmem[n])
+            self.write(self.HIPWRaddr[n], self.HIPWRmem[n][0:len(DEFAULT_HIPWR_DATA)])
 
         self.readout_eeprom()
