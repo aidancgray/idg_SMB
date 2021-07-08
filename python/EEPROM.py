@@ -24,12 +24,12 @@ EEPROM_LOADED_VAL = b'\xAA'
 
 DEFAULT_DAC_DATA_1 = b'\x00\x00' \
                      b'\x00\x00' \
-                     b'\x1e\x00' \
-                     b'\x00\x07' \
+                     b'\x00\x10' \
+                     b'\x10\x06' \
                      b'\x00\x00' \
                      b'\x00\x00' \
-                     b'\x00\x0f' \
-                     b'\x00\x01' \
+                     b'\x03\xC1' \
+                     b'\x00\x00' \
                      b'\x00\x00' \
                      b'\x00\x00' \
                      b'\x00\x00' \

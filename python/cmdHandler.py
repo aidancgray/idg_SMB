@@ -62,7 +62,7 @@ class CMDLoop:
             # Update temperature values every 1 second
             if newTime - tempTime >= 1:
                 for n in range(len(self.adcList)):
-                    temp = round(self.adcList[n].get_temperature(), 2)
+                    temp = round(self.adcList[n].get_temperature(), 3)
                     if temp == -999:
                         temp = '---'
                     
@@ -97,11 +97,11 @@ class CMDLoop:
                             raise ValueError(f"Unknown Sensor Units:{sns_unitsTmp} 0=K, 1=C, 2=F")
 
                         setpoint = dac.setPoint
-                        power = dac.power
-                        self.enqueue_udp(f'DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}')
+                        power = round(dac.power, 5)
+                        current = round(dac.controlVar, 5)
+                        self.enqueue_udp(f'DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}, current={current}')
                         dac.dac_update(temp, sns_unitsTmp)
-                        print(f'id={dac.dac_read_data(0x11)}')
-                        print(f'data={dac.dac_read_data(0x05)}')
+                        #print(f'data={dac.dac_read_data(0x05)}')
 
                 # Update Hi-Power Heaters
                 for htr in self.hi_pwr_htrs:

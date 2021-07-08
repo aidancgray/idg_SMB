@@ -55,19 +55,16 @@ async def runSMB(opts):
     for i in range(2):
         dacList.append(DAC(i, io, eeprom, tlm))
 
-    print(f'id={dacList[0].dac_read_data(0x11)}')
-    print(f'data={dacList[0].dac_read_data(0x05)}')
+    adcList = []
+    for i in range(12):
+        adcList.append(AD7124(i, io, eeprom, tlm, cal))
 
-    # adcList = []
-    # for i in range(12):
-    #     adcList.append(AD7124(i, io, eeprom, tlm, cal))
+    tcpServer = TCPServer('', 9999)
+    cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
+    transmitter = Transmitter(tcpServer.qXmit)
+    udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)
 
-    # tcpServer = TCPServer('', 9999)
-    # cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
-    # transmitter = Transmitter(tcpServer.qXmit)
-    # udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)
-
-    # await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start(), udpServer.start())
+    await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start(), udpServer.start())
 
 def main(argv=None):
     if argv is None:

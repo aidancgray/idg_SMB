@@ -13,6 +13,7 @@ import struct
 
 MAX_VOLTAGE = 28 # Volts
 MAX_CURRENT = 0.096 # Amps (24mA per channel)
+DSDO_BIT = 2**4
 
 class DACError(ValueError):
     pass
@@ -66,19 +67,27 @@ class DAC():
         self.ssa1 = self.io.pin_map['nDAC_SSA1']
         self.mss = self.io.pin_map['nDAC_MSS']
 
+        self.dac_write_data(0x06, 15)  # Select all Buck-Boost Converters
+        for i in range(4):
+            channelSelect = DSDO_BIT | 2**(5+i)
+            self.dac_write_data(0x03, channelSelect)    # Select each channel           
+
+            self.dac_write_data(0x04, 4102)  # Write the DAC Config Registers
+            self.dac_write_data(0x07, 1601)  # Write the BB Config Registers
+
         # Heater Parameters
-        self.__set_mode(self.DAC_reg_dict['MODE'][1])                               # 0=DISABLED, 1=Fixed%, 2=PID, or 3=HIPWR
-        self.__set_sns_num(self.DAC_reg_dict['SNS_NUM'][1])                         # Sensor (AD7124) number (1-12)
-        self.__set_kp(self.int_to_float(self.DAC_reg_dict['KP'][1]))                # proportional term
-        self.__set_ki(self.int_to_float(self.DAC_reg_dict['KI'][1]))                # integral term
-        self.__set_kd(self.int_to_float(self.DAC_reg_dict['KD'][1]))                # derivative term
-        self.__set_it(0)                                                            # total integral term
-        self.__set_etPrev(0)                                                        # the previous error value
-        self.__set_setPoint(self.int_to_float(self.DAC_reg_dict['SETPOINT'][1]))    # setpoint
-        self.__set_htr_res(self.int_to_float(self.DAC_reg_dict['HTR_RES'][1]))      # Heater resistance
-        self.__set_hysteresis(self.int_to_float(self.DAC_reg_dict['HYSTERESIS'][1]))  # Allowable range for HIPWR
-        self.__set_controlVar(0)                                                    # control variable
-        self.__set_rebootMode(False)                                                # False: Reset PID values on reboot
+        self.__set_mode(self.DAC_reg_dict['MODE'][1])                                   # 0=DISABLED, 1=Fixed%, 2=PID, or 3=HIPWR
+        self.__set_sns_num(self.DAC_reg_dict['SNS_NUM'][1])                             # Sensor (AD7124) number (1-12)
+        self.__set_kp(self.int_to_float(self.DAC_reg_dict['KP'][1]))                    # proportional term
+        self.__set_ki(self.int_to_float(self.DAC_reg_dict['KI'][1]))                    # integral term
+        self.__set_kd(self.int_to_float(self.DAC_reg_dict['KD'][1]))                    # derivative term
+        self.__set_it(0)                                                                # total integral term
+        self.__set_etPrev(0)                                                            # the previous error value
+        self.__set_setPoint(self.int_to_float(self.DAC_reg_dict['SETPOINT'][1]))        # setpoint
+        self.__set_htr_res(self.int_to_float(self.DAC_reg_dict['HTR_RES'][1]))          # Heater resistance
+        self.__set_hysteresis(self.int_to_float(self.DAC_reg_dict['HYSTERESIS'][1]))    # Allowable range for HIPWR
+        self.__set_controlVar(0)                                                        # control variable
+        self.__set_rebootMode(False)                                                    # False: Reset PID values on reboot
 
     """
     DAC Functions: read/write/etc
@@ -126,7 +135,7 @@ class DAC():
 
         for byte in writeByteArray:
             readByte = self.__dac_write_byte(byte) 
-        
+
         GPIO.output(self.mss, 1)  # MSS HIGH
 
     def __dac_write_byte(self, writeByte):
@@ -189,7 +198,7 @@ class DAC():
         GPIO.output(self.mss, 1)  # MSS HIGH
 
         # convert bytearray to int
-        returnData = int.from_bytes(returnBytes, byteorder = 'big')
+        returnData = int.from_bytes(returnBytes[1:3], byteorder = 'big')
 
         return returnData
 
@@ -242,7 +251,25 @@ class DAC():
         self.etPrev = et  # set the previous error term (for next time)
 
         # calculate the new control variable
-        controlVarTmp = ( self.kp * et ) + ( self.ki * self.it ) + ( self.kd * d_et )
+        p_term = self.kp * et
+        i_term = self.ki * self.it
+        d_term = self.kd * d_et
+
+        # Maximum current is set by the maximum voltage and the heater's resistance
+        self.max_current = MAX_VOLTAGE / self.htr_res
+        if self.max_current > MAX_CURRENT:
+            self.max_current = MAX_CURRENT
+
+        max_i_term = self.max_current**2 * self.htr_res * 1000
+
+        if i_term > max_i_term:
+            i_term = max_i_term
+        elif i_term < 0:
+            i_term = 0
+
+        controlVarTmp = p_term + i_term + d_term
+        controlVarTmp = controlVarTmp / 1000.0  # Watts
+
         self.power = controlVarTmp
 
         # convert control variable (power) to current
@@ -251,16 +278,14 @@ class DAC():
         self.write_control_var(self.controlVar)
 
     def power_to_current(self, power):
-        # Maximum current is set by the maximum voltage and the heater's resistance
-        self.max_current = MAX_VOLTAGE / self.htr_res
-        if self.max_current > MAX_CURRENT:
-            self.max_current = MAX_CURRENT
+        if power <= 0:
+            power = 0.0
 
         current = np.sqrt(power / self.htr_res)
         
-        if current < 0:
+        if current <= 0:
             current = 0.0
-        elif current > self.max_current:
+        elif current >= self.max_current:
             current = self.max_current
         
         return current
@@ -279,7 +304,6 @@ class DAC():
 
         controlVar_t = int((cv / self.max_current) * 2**18) # Current in the range of 0 - 2**18
         #print(f'current={cv}, max_cur={self.max_current}, cv={controlVar_t}')
-        DSDO_bit = 2**4  # set Disable SDO bit
 
         # 4 channels: A, B, C, D
         # We load each to max, then spill over into the next channel.
@@ -292,9 +316,7 @@ class DAC():
                 channelList[i] = controlVar_t
                 controlVar_t = 0
 
-            channelSelect = DSDO_bit | 2**(5+i)
-            #print(f'channelSelect={channelSelect}')
-            print(f'channelList{i}={channelList[i]}')
+            channelSelect = DSDO_BIT | 2**(5+i)
             self.dac_write_data(0x03, channelSelect)  # Select each channel
             self.dac_write_data(0x05, channelList[i])  # Write to the channel
 
