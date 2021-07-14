@@ -33,30 +33,30 @@ class DAC():
         self.power = None
 
         self.DAC_reg_dict = {
-                            'RESET':        [0x01, int.from_bytes(self.eeprom.DACmem[self.idx][0:2], byteorder='big'), 2],
-                            'RESET_CONFIG': [0x02, int.from_bytes(self.eeprom.DACmem[self.idx][2:4], byteorder='big'), 2],
-                            'SEL_DAC':      [0x03, int.from_bytes(self.eeprom.DACmem[self.idx][4:6], byteorder='big'), 2], 
-                            'CONF_DAC':     [0x04, int.from_bytes(self.eeprom.DACmem[self.idx][6:8], byteorder='big'), 2],
-                            'DAC_DATA':     [0x05, int.from_bytes(self.eeprom.DACmem[self.idx][8:10], byteorder='big'), 2],
-                            'SEL_BB':       [0x06, int.from_bytes(self.eeprom.DACmem[self.idx][10:12], byteorder='big'), 2],
-                            'CONF_BB':      [0x07, int.from_bytes(self.eeprom.DACmem[self.idx][12:14], byteorder='big'), 2],
-                            'CHAN_CAL':     [0x08, int.from_bytes(self.eeprom.DACmem[self.idx][14:16], byteorder='big'), 2],
-                            'CHAN_GAIN':    [0x09, int.from_bytes(self.eeprom.DACmem[self.idx][16:18], byteorder='big'), 2],
-                            'CHAN_OFFSET':  [0x0A, int.from_bytes(self.eeprom.DACmem[self.idx][18:20], byteorder='big'), 2],
-                            'STATUS':       [0x0B, int.from_bytes(self.eeprom.DACmem[self.idx][20:22], byteorder='big'), 2],
-                            'STATUS_MASK':  [0x0C, int.from_bytes(self.eeprom.DACmem[self.idx][22:24], byteorder='big'), 2],
-                            'ALARM_ACT':    [0x0D, int.from_bytes(self.eeprom.DACmem[self.idx][24:26], byteorder='big'), 2],
-                            'ALARM_CODE':   [0x0E, int.from_bytes(self.eeprom.DACmem[self.idx][26:28], byteorder='big'), 2],
-                            'WATCHDOG':     [0x10, int.from_bytes(self.eeprom.DACmem[self.idx][28:30], byteorder='big'), 2],
-                            'ID':           [0x11, int.from_bytes(self.eeprom.DACmem[self.idx][30:32], byteorder='big'), 2],
-                            'MODE':         [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][32:34], byteorder='big'), 2],
-                            'SNS_NUM':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][34:36], byteorder='big'), 2],
-                            'SETPOINT':     [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][36:40], byteorder='big'), 4],
-                            'KP':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][40:44], byteorder='big'), 4],
-                            'KI':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][44:48], byteorder='big'), 4],
-                            'KD':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][48:52], byteorder='big'), 4],
-                            'HTR_RES':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][52:56], byteorder='big'), 4],
-                            'HYSTERESIS':   [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][60:64], byteorder='big'), 4]
+                            'RESET':        [0x01, int.from_bytes(self.eeprom.DACmem[self.idx][0:2], byteorder='big', signed=False), 2],
+                            'RESET_CONFIG': [0x02, int.from_bytes(self.eeprom.DACmem[self.idx][2:4], byteorder='big', signed=False), 2],
+                            'SEL_DAC':      [0x03, int.from_bytes(self.eeprom.DACmem[self.idx][4:6], byteorder='big', signed=False), 2], 
+                            'CONF_DAC':     [0x04, int.from_bytes(self.eeprom.DACmem[self.idx][6:8], byteorder='big', signed=False), 2],
+                            'DAC_DATA':     [0x05, int.from_bytes(self.eeprom.DACmem[self.idx][8:10], byteorder='big', signed=False), 2],
+                            'SEL_BB':       [0x06, int.from_bytes(self.eeprom.DACmem[self.idx][10:12], byteorder='big', signed=False), 2],
+                            'CONF_BB':      [0x07, int.from_bytes(self.eeprom.DACmem[self.idx][12:14], byteorder='big', signed=False), 2],
+                            'CHAN_CAL':     [0x08, int.from_bytes(self.eeprom.DACmem[self.idx][14:16], byteorder='big', signed=False), 2],
+                            'CHAN_GAIN':    [0x09, int.from_bytes(self.eeprom.DACmem[self.idx][16:18], byteorder='big', signed=False), 2],
+                            'CHAN_OFFSET':  [0x0A, int.from_bytes(self.eeprom.DACmem[self.idx][18:20], byteorder='big', signed=False), 2],
+                            'STATUS':       [0x0B, int.from_bytes(self.eeprom.DACmem[self.idx][20:22], byteorder='big', signed=False), 2],
+                            'STATUS_MASK':  [0x0C, int.from_bytes(self.eeprom.DACmem[self.idx][22:24], byteorder='big', signed=False), 2],
+                            'ALARM_ACT':    [0x0D, int.from_bytes(self.eeprom.DACmem[self.idx][24:26], byteorder='big', signed=False), 2],
+                            'ALARM_CODE':   [0x0E, int.from_bytes(self.eeprom.DACmem[self.idx][26:28], byteorder='big', signed=False), 2],
+                            'WATCHDOG':     [0x10, int.from_bytes(self.eeprom.DACmem[self.idx][28:30], byteorder='big', signed=False), 2],
+                            'ID':           [0x11, int.from_bytes(self.eeprom.DACmem[self.idx][30:32], byteorder='big', signed=False), 2],
+                            'MODE':         [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][32:34], byteorder='big', signed=False), 2],
+                            'SNS_NUM':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][34:36], byteorder='big', signed=False), 2],
+                            'SETPOINT':     [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][36:40], byteorder='big', signed=True), 4],
+                            'KP':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][40:44], byteorder='big', signed=False), 4],
+                            'KI':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][44:48], byteorder='big', signed=False), 4],
+                            'KD':           [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][48:52], byteorder='big', signed=False), 4],
+                            'HTR_RES':      [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][52:56], byteorder='big', signed=False), 4],
+                            'HYSTERESIS':   [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][60:64], byteorder='big', signed=False), 4]
                             }
 
         # GPIO Pins
@@ -76,18 +76,18 @@ class DAC():
             self.dac_write_data(0x07, 1601)  # Write the BB Config Registers
 
         # Heater Parameters
-        self.__set_mode(self.DAC_reg_dict['MODE'][1])                                   # 0=DISABLED, 1=Fixed%, 2=PID, or 3=HIPWR
-        self.__set_sns_num(self.DAC_reg_dict['SNS_NUM'][1])                             # Sensor (AD7124) number (1-12)
-        self.__set_kp(self.int_to_float(self.DAC_reg_dict['KP'][1]))                    # proportional term
-        self.__set_ki(self.int_to_float(self.DAC_reg_dict['KI'][1]))                    # integral term
-        self.__set_kd(self.int_to_float(self.DAC_reg_dict['KD'][1]))                    # derivative term
-        self.__set_it(0)                                                                # total integral term
-        self.__set_etPrev(0)                                                            # the previous error value
-        self.__set_setPoint(self.int_to_float(self.DAC_reg_dict['SETPOINT'][1]))        # setpoint
-        self.__set_htr_res(self.int_to_float(self.DAC_reg_dict['HTR_RES'][1]))          # Heater resistance
-        self.__set_hysteresis(self.int_to_float(self.DAC_reg_dict['HYSTERESIS'][1]))    # Allowable range for HIPWR
-        self.__set_controlVar(0)                                                        # control variable
-        self.__set_rebootMode(False)                                                    # False: Reset PID values on reboot
+        self.__set_mode(self.DAC_reg_dict['MODE'][1])                                               # 0=DISABLED, 1=Fixed%, 2=PID, or 3=HIPWR
+        self.__set_sns_num(self.DAC_reg_dict['SNS_NUM'][1])                                         # Sensor (AD7124) number (1-12)
+        self.__set_kp(self.int_to_float(self.DAC_reg_dict['KP'][1], sign=False))                    # proportional term
+        self.__set_ki(self.int_to_float(self.DAC_reg_dict['KI'][1], sign=False))                    # integral term
+        self.__set_kd(self.int_to_float(self.DAC_reg_dict['KD'][1], sign=False))                    # derivative term
+        self.__set_it(0)                                                                            # total integral term
+        self.__set_etPrev(0)                                                                        # the previous error value
+        self.__set_setPoint(self.int_to_float(self.DAC_reg_dict['SETPOINT'][1], sign=True))         # setpoint
+        self.__set_htr_res(self.int_to_float(self.DAC_reg_dict['HTR_RES'][1], sign=False))          # Heater resistance
+        self.__set_hysteresis(self.int_to_float(self.DAC_reg_dict['HYSTERESIS'][1], sign=False))    # Allowable range for HIPWR
+        self.__set_controlVar(0)                                                                    # control variable
+        self.__set_rebootMode(False)                                                                # False: Reset PID values on reboot
 
     """
     DAC Functions: read/write/etc
@@ -247,12 +247,12 @@ class DAC():
 
         et = setPointK - pv # calculate e(t)
         d_et = ( et - self.etPrev ) / dt  # calculate de(t)/dt
-        self.it += ( et * dt )  # add to the integral term
+        self.it = self.it + ( self.ki * et * dt )  # add to the integral term
         self.etPrev = et  # set the previous error term (for next time)
 
         # calculate the new control variable
         p_term = self.kp * et
-        i_term = self.ki * self.it
+        i_term = self.it
         d_term = self.kd * d_et
 
         # Maximum current is set by the maximum voltage and the heater's resistance
@@ -261,10 +261,14 @@ class DAC():
             self.max_current = MAX_CURRENT
 
         max_i_term = self.max_current**2 * self.htr_res * 1000
-
+        #print(f'p_term={p_term}')
+        #print(f'i_term={i_term}')
+        
         if i_term > max_i_term:
+            self.it = max_i_term / self.ki
             i_term = max_i_term
         elif i_term < 0:
+            self.it = 0
             i_term = 0
 
         controlVarTmp = p_term + i_term + d_term
@@ -325,12 +329,12 @@ class DAC():
         self.io.dac_ldac(0)
         self.io.dac_ldac(1)
 
-    def float_to_int(self, f):
-        i = int.from_bytes(bytearray(struct.pack(">f", f)), byteorder='big')
+    def float_to_int(self, f, sign=False):
+        i = int.from_bytes(bytearray(struct.pack(">f", f)), byteorder='big', signed=sign)
         return i
 
-    def int_to_float(self, i):
-        fTmp = struct.unpack(">f", i.to_bytes(4, byteorder='big'))
+    def int_to_float(self, i, sign=False):
+        fTmp = struct.unpack(">f", i.to_bytes(4, byteorder='big', signed=sign))
         f= fTmp[0]
         return f
 
@@ -365,28 +369,28 @@ class DAC():
         return self.__hysteresis
 
     def __set_hysteresis(self, var):
-        self.DAC_reg_dict['HYSTERESIS'][1] = self.float_to_int(var)
+        self.DAC_reg_dict['HYSTERESIS'][1] = self.float_to_int(var, sign=False)
         self.__hysteresis = var
 
     def __get_kp(self):
         return self.__kp
 
     def __set_kp(self, var):
-        self.DAC_reg_dict['KP'][1] = self.float_to_int(var)
+        self.DAC_reg_dict['KP'][1] = self.float_to_int(var, sign=False)
         self.__kp = var
 
     def __get_ki(self):
         return self.__ki
 
     def __set_ki(self, var):
-        self.DAC_reg_dict['KI'][1] = self.float_to_int(var)
+        self.DAC_reg_dict['KI'][1] = self.float_to_int(var, sign=False)
         self.__ki = var
 
     def __get_kd(self):
         return self.__kd
 
     def __set_kd(self, var):
-        self.DAC_reg_dict['KD'][1] = self.float_to_int(var)
+        self.DAC_reg_dict['KD'][1] = self.float_to_int(var, sign=False)
         self.__kd = var
 
     def __get_it(self):
@@ -399,9 +403,7 @@ class DAC():
         return self.__setPoint
 
     def __set_setPoint(self, var):
-        # if var < 0:
-        #     raise ValueError("Invalid setpoint.")
-        self.DAC_reg_dict['SETPOINT'][1] = self.float_to_int(var)
+        self.DAC_reg_dict['SETPOINT'][1] = self.float_to_int(var, sign=True)
         self.__setPoint = var
 
     def __get_etPrev(self):
@@ -415,7 +417,7 @@ class DAC():
 
     def __set_htr_res(self, var):
         if var >= 1 and var <= 2**16:
-            self.DAC_reg_dict['HTR_RES'][1] = self.float_to_int(var)
+            self.DAC_reg_dict['HTR_RES'][1] = self.float_to_int(var, sign=False)
             self.__htr_res = var
         elif var == 0:
             #self.logger.warning('No heater resistance set')
@@ -453,7 +455,12 @@ class DAC():
 
         for reg in self.DAC_reg_dict:
             register = self.DAC_reg_dict[reg]
-            regByteArray = register[1].to_bytes(register[2], byteorder='big')
+            
+            if reg == 'SETPOINT':
+                regByteArray = register[1].to_bytes(register[2], byteorder='big', signed=True)
+            else:
+                regByteArray = register[1].to_bytes(register[2], byteorder='big', signed=False)
+            
             DACbyteArray.extend(regByteArray)
 
         self.eeprom.DACmem[self.idx] = DACbyteArray

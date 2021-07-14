@@ -12,6 +12,7 @@ import logging
 import asyncio
 import time
 import queue
+from datetime import datetime
 from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
 
@@ -61,6 +62,8 @@ class CMDLoop:
             ### Temperature Sensor ###
             # Update temperature values every 1 second
             if newTime - tempTime >= 1:
+                now = datetime.now()
+
                 for n in range(len(self.adcList)):
                     temp = round(self.adcList[n].get_temperature(), 3)
                     if temp == -999:
@@ -78,7 +81,7 @@ class CMDLoop:
                         raise ValueError(f"Unknown Sensor Units:{sns_unitsTmp} 0=K, 1=C, 2=F")
                     
                     m = f'{n+1:02d}'
-                    self.enqueue_udp(f'temp_{m}={temp}{sns_units}')
+                    self.enqueue_udp(f'{now}, temp_{m}={temp}{sns_units}')
                     self.tlm['sns_temp_'+str(n+1)] = temp
                 
                 # Update DAC Heaters
@@ -97,11 +100,15 @@ class CMDLoop:
                             raise ValueError(f"Unknown Sensor Units:{sns_unitsTmp} 0=K, 1=C, 2=F")
 
                         setpoint = dac.setPoint
-                        power = round(dac.power, 5)
-                        current = round(dac.controlVar, 5)
-                        self.enqueue_udp(f'DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}, current={current}')
+                        try:
+                            power = round(dac.power, 5)
+                            current = round(dac.controlVar, 5)
+                        except:
+                            power = 0
+                            current = 0
+                        
+                        self.enqueue_udp(f'{now}, DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}, current={current}')
                         dac.dac_update(temp, sns_unitsTmp)
-                        #print(f'data={dac.dac_read_data(0x05)}')
 
                 # Update Hi-Power Heaters
                 for htr in self.hi_pwr_htrs:
@@ -340,6 +347,11 @@ class CMDLoop:
                 self.adcList[sns].set_calibration(calData)
                 retData = 'OK'
 
+            elif cmd == 'sns_cal_coeffs':
+                sns = int(p1 - 1)
+                calCoeffs = p2.split(';')
+                retData = self.adcList[sns].set_calibration_coeffs(calCoeffs)
+
             elif cmd == 'htr_cur':
                 pass
 
@@ -368,12 +380,12 @@ class CMDLoop:
                 self.ads1015.update_eeprom_mem()
                 self.bme280.update_eeprom_mem()
 
-                # for htr in self.pid_htrs:
-                #     htr.update_eeprom_mem()
-
                 for htr in self.hi_pwr_htrs:
                     htr.update_eeprom_mem()
 
+                # for htr in self.pid_htrs:
+                #     htr.update_eeprom_mem()
+                
                 self.eeprom.fill_eeprom()
                 retData = 'OK'
 
@@ -482,6 +494,11 @@ class CMDLoop:
                 elif sns_units == 2:
                     units = 'F'
                 retData = f'sns_units_{int(p1)}={units}'
+
+            elif cmd == 'sns_cal_coeffs':
+                sns = int(p1 - 1)
+                calCoeffs = self.adcList[sns].get_calibration_coeffs()
+                retData = f'sns_cal_coeffs{int(p1)}={calCoeffs}'
 
             elif cmd == 'htr_cur':
                 if p1 == 1:

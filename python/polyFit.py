@@ -88,7 +88,7 @@ class polyFit():
         
         for n in range(deg):
             c = polCoefs[n]
-                
+            
             T = T + (c * (Z**n))
             
         return T
