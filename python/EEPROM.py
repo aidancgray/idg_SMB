@@ -23,32 +23,19 @@ EEPROM_LOADED_ADDR = 8191
 EEPROM_LOADED_VAL = b'\xAA'
 
 DAC_EEPROM_START = 0x0
+
 DEFAULT_DAC_DATA_1 = b'\x00\x00' \
                      b'\x00\x00' \
-                     b'\x00\x10' \
-                     b'\x10\x06' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x03\xC1' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00' \
-                     b'\x00\x00'
-DEFAULT_DAC_DATA_2 = b'\x00\x00' \
-                     b'\x00\x00' \
                      b'\x00\x00\x00\x00' \
                      b'\x00\x00\x00\x00' \
                      b'\x00\x00\x00\x00' \
                      b'\x00\x00\x00\x00' \
                      b'\x00\x00\x00\x00' \
                      b'\x00\x00\x00\x00' \
+                     b'\x43\x96\x00\x00'
+
+DEFAULT_DAC_DATA_2 = b'\x00\x00\x00\x00' \
                      b'\x00\x00\x00\x00'
-#DAC_MEM_LENGTH = len(DEFAULT_DAC_DATA_1) + len(DEFAULT_DAC_DATA_2)
 DAC_MEM_LENGTH = 64
 
 ADC_EEPROM_START = 0x100
@@ -82,7 +69,6 @@ DEFAULT_ADC_DATA_3 =    b'\x00\x00\x00\x00' \
                         b'\x00\x00\x00\x00' \
                         b'\x00\x00\x00\x00' \
                         b'\x00'
-#ADC_MEM_LENGTH = len(DEFAULT_ADC_DATA_1) + len(DEFAULT_ADC_DATA_2) + len(DEFAULT_ADC_DATA_3)
 ADC_MEM_LENGTH = 128
 
 
@@ -101,14 +87,12 @@ HIPWR_EEPROM_START = 0x800
 DEFAULT_HIPWR_DATA =    b'\x00' \
                         b'\x00' \
                         b'\x00\x00\x00\x00'
-#HIPWR_MEM_LENGTH = len(DEFAULT_HIPWR_DATA)
 HIPWR_MEM_LENGTH = 32
 
 # MAY REMOVE
 PID_EEPROM_START = 0x900
 DEFAULT_PID_DATA =  b'\x00' \
                     b'\x00' 
-PID_MEM_LENGTH = len(DEFAULT_PID_DATA)
 PID_MEM_LENGTH = 32
 
 class EEPROMError(IOError):

@@ -59,7 +59,7 @@ async def runSMB(opts):
     for i in range(12):
         adcList.append(AD7124(i, io, eeprom, tlm, cal))
 
-    tcpServer = TCPServer('', 9999)
+    tcpServer = TCPServer('', 1024)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
     transmitter = Transmitter(tcpServer.qXmit)
     udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)

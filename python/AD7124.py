@@ -321,7 +321,7 @@ class AD7124:
         if self.calib_fit != None:
             data = self.get_DATA()
             dataTmp = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
-            print(f'tmpData={dataTmp}')
+            #print(f'tmpData={dataTmp}')
 
             ## For reading diode voltage w/o conversion
             # if self.sns_typ == 3:

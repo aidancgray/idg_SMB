@@ -54,8 +54,6 @@ class TCPServer():
                         cmdLoopCheck = False
                         asyncio.create_task(self.enqueue_xmit((writer, 'closing connection...\n')))
                         await asyncio.sleep(0.001)
-                    elif message.lower() == 'exit\r\n':
-                        sys.exit()
                     else:
                         asyncio.create_task(self.enqueue_cmd((writer, message)))
                         await writer.drain()
