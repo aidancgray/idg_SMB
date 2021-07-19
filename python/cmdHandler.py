@@ -12,6 +12,7 @@ import logging
 import asyncio
 import time
 import queue
+import sys
 from datetime import datetime
 from CMD_DICT import cmd_set_dict, cmd_get_dict
 from LEG_CMD_DICT import leg_action_dict, leg_query_dict
@@ -87,7 +88,7 @@ class CMDLoop:
                 # Update DAC Heaters
                 for dac in self.dacList:
                     # Ensure mode and sensor number are specified
-                    if dac.sns_num != 0 and dac.mode != 0:
+                    if dac.sns_num != 0 and dac.mode != 0 and dac.htr_res != 0:
                         temp = self.tlm['sns_temp_'+str(dac.sns_num)]
                         sns_unitsTmp = self.adcList[dac.sns_num-1].get_sns_units()
                         if sns_unitsTmp == 0:
@@ -108,7 +109,23 @@ class CMDLoop:
                             current = 0
                         
                         self.enqueue_udp(f'{now}, DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}, current={current}')
-                        dac.dac_update(temp, sns_unitsTmp)
+
+                        # if sns_unitsTmp == 'K':
+                        #     tempK = temp
+                        # elif sns_unitsTmp == 1:
+                        #     tempK = temp + 273.15
+                        # elif sns_unitsTmp == 2:
+                        #     tempK = ((temp - 32) * (5 / 9)) + 273.15
+                        
+                        if temp < dac.max_temp and temp > dac.min_temp:
+                            if dac.mode == 1:
+                                dac.fp_update()
+                            elif dac.mode == 2:
+                                dac.dac_update(temp, sns_unitsTmp)
+                            elif dac.mode == 3:
+                                dac.set_current_update()
+                        else:
+                            dac.controlVar = 0.0
 
                 # Update Hi-Power Heaters
                 for htr in self.hi_pwr_htrs:
@@ -274,43 +291,127 @@ class CMDLoop:
                 self.tlm['id'] = p1
                 retData = 'OK'
             
-            elif cmd == 'pid_d':
-                intP1 = int(p1 - 1)
-                self.dacList[intP1].kd = p2
-                retData = 'OK'
-
             elif cmd == 'rst':
                 pass
+            
+            elif cmd == 'update_eeprom':
+                for dac in self.dacList:
+                    dac.update_eeprom_mem()
+                
+                for adc in self.adcList:
+                    adc.update_eeprom_mem()
 
-            elif cmd == 'hi_pwr':
-                if int(p2) == 0:
-                    self.hi_pwr_htrs[int(p1)-1].power_off()
-                elif int(p2) == 1:
-                    self.hi_pwr_htrs[int(p1)-1].power_on()
+                self.ads1015.update_eeprom_mem()
+                self.bme280.update_eeprom_mem()
+
+                for htr in self.hi_pwr_htrs:
+                    htr.update_eeprom_mem()
+
+                # for htr in self.pid_htrs:
+                #     htr.update_eeprom_mem()x
+                
+                self.eeprom.fill_eeprom()
                 retData = 'OK'
+            
+            elif cmd == 'stop_program':
+                # Turn off all DACs
+                for dac in self.dacList:
+                    dac.write_control_var(0)
 
-            elif cmd == 'pid_i':
-                intP1 = int(p1 - 1)
-                self.dacList[intP1].ki = p2
-                retData = 'OK'
+                # Turn off all hi-power heaters
+                for htr in self.hi_pwr_htrs:
+                    htr.power_off()
 
-            elif cmd == 'lcs':
+                sys.exit()
+
+            elif cmd == 'dac_lcs':
                 intP1 = int(p1 - 1)
                 self.dacList[intP1].sns_num = int(p2)
                 retData = 'OK'
 
-            elif cmd == 'htr_ena':
+            elif cmd == 'dac_mode':
                 intP1 = int(p1 - 1)
                 self.dacList[intP1].mode = int(p2)
                 retData = 'OK'
+            
+            elif cmd == 'dac_res':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].htr_res = p2
+                retData = 'OK'
 
-            elif cmd == 'pid_p':
+            elif cmd == 'dac_cur':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].controlVar = float(p2)
+                retData = 'OK'
+            
+            elif cmd == 'dac_fp':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].fixed_percent = float(p2)
+                retData = 'OK'
+
+            elif cmd == 'dac_setpoint':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].setPoint = float(p2)
+                retData = 'OK'
+
+            elif cmd == 'dac_max_temp':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].max_temp = float(p2)
+                retData = 'OK'
+            
+            elif cmd == 'dac_min_temp':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].min_temp = float(p2)
+                retData = 'OK'
+
+            elif cmd == 'dac_p':
                 intP1 = int(p1 - 1)
                 self.dacList[intP1].kp = p2
                 retData = 'OK'
+            
+            elif cmd == 'dac_i':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].ki = p2
+                retData = 'OK'
 
-            elif cmd == 'adc_filt':
-                pass
+            elif cmd == 'dac_d':
+                intP1 = int(p1 - 1)
+                self.dacList[intP1].kd = p2
+                retData = 'OK'
+
+            elif cmd == 'hipwr_lcs':
+                self.hi_pwr_htrs[int(p1)-1].sns_num = int(p2)
+                retData = 'OK'
+
+            elif cmd == 'hipwr_mode':
+                if int(p2) == 0:
+                    self.hi_pwr_htrs[int(p1)-1].power_off()
+                elif int(p2) == 1:
+                    self.hi_pwr_htrs[int(p1)-1].power_on()
+                elif int(p2) == 2:
+                    # Thermostatic Control
+                    pass
+                retData = 'OK'
+
+            elif cmd == 'hipwr_setpoint':
+                intP1 = int(p1 - 1)
+                self.hi_pwr_hts[intP1].setPoint = float(p2)
+                retData = 'OK'
+
+            elif cmd == 'hipwr_hysteresis':
+                intP1 = int(p1 - 1)
+                self.hi_pwr_hts[intP1].hysteresis = float(p2)
+                retData = 'OK'
+
+            elif cmd == 'hipwr_max_temp':
+                intP1 = int(p1 - 1)
+                self.hi_pwr_htrs[intP1].max_temp = float(p2)
+                retData = 'OK'
+            
+            elif cmd == 'hipwr_min_temp':
+                intP1 = int(p1 - 1)
+                self.hi_pwr_htrs[intP1].min_temp = float(p2)
+                retData = 'OK'
 
             elif cmd == 'sns_typ':
                 sns = int(p1 - 1)
@@ -352,43 +453,14 @@ class CMDLoop:
                 calCoeffs = p2.split(';')
                 retData = self.adcList[sns].set_calibration_coeffs(calCoeffs)
 
-            elif cmd == 'htr_cur':
+            elif cmd == 'adc_filt':
                 pass
-
-            elif cmd == 'htr_res':
-                intP1 = int(p1 - 1)
-                self.dacList[intP1].htr_res = p2
-                retData = 'OK'
-
-            elif cmd == 'setpoint':
-                intP1 = int(p1 - 1)
-                self.dacList[intP1].setPoint = p2
-                retData = 'OK'
-
+            
             elif cmd == 'excit':
                 intP1 = int(p1 - 1)
                 self.adcList[intP1].set_excitation_current(p2)
                 retData = 'OK'
-
-            elif cmd == 'update_eeprom':
-                for dac in self.dacList:
-                    dac.update_eeprom_mem()
                 
-                for adc in self.adcList:
-                    adc.update_eeprom_mem()
-
-                self.ads1015.update_eeprom_mem()
-                self.bme280.update_eeprom_mem()
-
-                for htr in self.hi_pwr_htrs:
-                    htr.update_eeprom_mem()
-
-                # for htr in self.pid_htrs:
-                #     htr.update_eeprom_mem()
-                
-                self.eeprom.fill_eeprom()
-                retData = 'OK'
-
             else:
                 retData = f'BAD,command failure: unknown command {cmd!r}'
                 self.logger.error(retData)
@@ -396,8 +468,8 @@ class CMDLoop:
 
             return retData
         
-        except (TypeError, ValueError):
-            retData = 'BAD,command failure: expected args float or int'
+        except (TypeError, ValueError) as e:
+            retData = f'BAD,command failure: expected args float or int = {e}'
             self.logger.error(retData)
             return retData
         
@@ -430,12 +502,12 @@ class CMDLoop:
                 board_id = self.tlm['id']
                 retData = f'id={board_id!r}'
             
-            elif cmd == 'pid_d':
+            elif cmd == 'dac_d':
                 intP1 = int(p1 - 1)
                 pid_d = self.dacList[intP1].kd
                 retData = f'pid_d_{int(p1)}={pid_d!r}'
 
-            elif cmd == 'hi_pwr':
+            elif cmd == 'hipwr_mode':
                 retData = self.hi_pwr_htrs[int(p1)-1].status()
 
                 if retData == 0:
@@ -445,12 +517,12 @@ class CMDLoop:
                 else:
                     retData = 'BAD,GPIO read error'
 
-            elif cmd == 'pid_i':
+            elif cmd == 'dac_i':
                 intP1 = int(p1 - 1)
                 pid_i = self.dacList[intP1].ki
                 retData = f'pid_i_{int(p1)}={pid_i!r}'
 
-            elif cmd == 'lcs':
+            elif cmd == 'dac_lcs':
                 intP1 = int(p1 - 1)
                 sns_num = self.dacList[intP1].sns_num
                 retData = f'lcs_{int(p1)}={sns_num!r}'
@@ -463,15 +535,15 @@ class CMDLoop:
                 sns_units = self.adcList[int(p1)-1].sns_units
                 retData = f'sns_temp_{sns}={temp!r}{sns_units}'
 
-            elif cmd == 'htr_ena':
+            elif cmd == 'dac_mode':
                 intP1 = int(p1 - 1)
                 mode = self.dacList[intP1].mode
-                retData = f'htr_ena_{int(p1)}={mode!r}'
+                retData = f'dac_mode_{int(p1)}={mode!r}'
             
             elif cmd == 'sw_rev':
                 pass
 
-            elif cmd == 'pid_p':
+            elif cmd == 'dac_p':
                 intP1 = int(p1 - 1)
                 pid_p = self.dacList[intP1].kp
                 retData = f'pid_p_{int(p1)}={pid_p!r}'
@@ -500,23 +572,49 @@ class CMDLoop:
                 calCoeffs = self.adcList[sns].get_calibration_coeffs()
                 retData = f'sns_cal_coeffs{int(p1)}={calCoeffs}'
 
-            elif cmd == 'htr_cur':
+            elif cmd == 'dac_cur':
                 if p1 == 1:
-                    retData = 'htr_cur_1='+str(self.tlm['htr_current1'])
+                    retData = 'dac_current_1='+str(self.tlm['dac_current_1'])
                 elif p1 == 2:
-                    retData = 'htr_cur_2='+str(self.tlm['htr_current2'])
+                    retData = 'dac_current_2='+str(self.tlm['dac_current_2'])
+                else:
+                    retData = f'BAD,command failure: unknown arg {p1!r}'
+            
+            elif cmd == 'dac_fp':
+                if p1 == 1:
+                    retData = 'dac_fp_1='+str(self.tlm['dac_fp_1'])
+                elif p1 == 2:
+                    retData = 'dac_fp_2='+str(self.tlm['dac_fp_2'])
                 else:
                     retData = f'BAD,command failure: unknown arg {p1!r}'
 
-            elif cmd == 'setpoint':
+            elif cmd == 'hipwr_cur':
+                if p1 == 1:
+                    retData = 'hipwr_current_1='+str(self.tlm['hipwr_current_1'])
+                elif p1 == 2:
+                    retData = 'hipwr_current_2='+str(self.tlm['hipwr_current_2'])
+                else:
+                    retData = f'BAD,command failure: unknown arg {p1!r}'
+
+            elif cmd == 'dac_setpoint':
                 intP1 = int(p1 - 1)
                 setpoint = self.dacList[intP1].setPoint
                 retData = f'setpoint={setpoint!r}'
 
-            elif cmd == 'htr_res':
+            elif cmd == 'dac_res':
                 intP1 = int(p1 - 1)
-                htr_res = self.dacList[intP1].htr_res
-                retData = f'htr_res={htr_res!r}'
+                dac_res = self.dacList[intP1].htr_res
+                retData = f'dac_res={dac_res!r}'
+
+            elif cmd == 'dac_max_temp':
+                intP1 = int(p1 - 1)
+                dac_max_temp = self.dacList[intP1].max_temp
+                retData = f'dac_max_temp={dac_max_temp!r}'
+            
+            elif cmd == 'dac_min_temp':
+                intP1 = int(p1 - 1)
+                dac_min_temp = self.dacList[intP1].min_temp
+                retData = f'dac_min_temp={dac_min_temp!r}'
 
             elif cmd == 'excit':
                 intP1 = int(p1 - 1)
@@ -546,8 +644,7 @@ class CMDLoop:
 
             return retData
 
-        except TypeError as e1:
-            print(e1)
+        except Exception as e1:
             retData = 'BAD,command failure: expected args float or int'
             self.logger.error(retData)
             return retData
