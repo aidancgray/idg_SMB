@@ -109,13 +109,6 @@ class CMDLoop:
                             current = 0
                         
                         self.enqueue_udp(f'{now}, DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}, current={current}')
-
-                        # if sns_unitsTmp == 'K':
-                        #     tempK = temp
-                        # elif sns_unitsTmp == 1:
-                        #     tempK = temp + 273.15
-                        # elif sns_unitsTmp == 2:
-                        #     tempK = ((temp - 32) * (5 / 9)) + 273.15
                         
                         if temp < dac.max_temp and temp > dac.min_temp:
                             if dac.mode == 1:
@@ -129,11 +122,16 @@ class CMDLoop:
 
                 # Update Hi-Power Heaters
                 for htr in self.hi_pwr_htrs:
-                    if htr.mode == 2:
+                    if htr.sns_num != 0 and htr.mode != 0:
                         temp = self.tlm['sns_temp_'+str(htr.sns_num)]
                         units = self.adcList[htr.sns_num-1].get_sns_units()
                         self.logger.info(f'HIPWR_{htr.idx}: temp={temp}, units={units}')
-                        # htr.update_htr(temp, units)
+                        
+                        if temp < htr.max_temp and temp > htr.min_temp:
+                            if htr.mode == 2:
+                                htr.update_htr(temp, units)
+                        else:
+                            htr.power_off()
 
                 tempTime = time.perf_counter()
 
@@ -142,6 +140,7 @@ class CMDLoop:
                 msg = await self.qCmd.get()
                 writer = msg[0]
                 cmd = msg[1]
+
                 retData = await self.parse_raw_command(cmd)
                 await self.enqueue_xmit((writer, retData+'\n'))
 
@@ -151,24 +150,28 @@ class CMDLoop:
     async def parse_raw_command(self, rawCmd):
         cmdStr = rawCmd.strip()  # remove whitespace at the end
         
-        if cmdStr[0] == '~' or cmdStr[0] == '?':
-            retData = await self.legacy_command_parser(cmdStr)
-        
-        elif cmdStr[0] == '$':
-            cmdStr = cmdStr[1:]  # Remove the start character
-            # cmdStr = cmdStr.replace(' ', '')  # Remove all whitespace
-            cmdStrList = cmdStr.split(',')  # split the command on the commas
+        if len(cmdStr) != 0:
+            if cmdStr[0] == '~' or cmdStr[0] == '?':
+                retData = await self.legacy_command_parser(cmdStr)
             
-            if cmdStrList[0] == 'set':
-                retData = await self.parse_set_command(cmdStrList[1:])
+            elif cmdStr[0] == '$':
+                cmdStr = cmdStr[1:]  # Remove the start character
+                # cmdStr = cmdStr.replace(' ', '')  # Remove all whitespace
+                cmdStrList = cmdStr.split(',')  # split the command on the commas
+                
+                if cmdStrList[0] == 'set':
+                    retData = await self.parse_set_command(cmdStrList[1:])
 
-            elif cmdStrList[0] == 'get':
-                retData = await self.parse_get_command(cmdStrList[1:])
+                elif cmdStrList[0] == 'get':
+                    retData = await self.parse_get_command(cmdStrList[1:])
+
+                else:
+                    retData = 'BAD,command failure: second arg must be \'set\' or \'get\''
+                    self.logger.error(retData)
 
             else:
-                retData = 'BAD,command failure: second arg must be \'set\' or \'get\''
+                retData = 'BAD,command failure: must start with \'~\', \'?\', or \'$\''
                 self.logger.error(retData)
-
         else:
             retData = 'BAD,command failure: must start with \'~\', \'?\', or \'$\''
             self.logger.error(retData)
@@ -291,8 +294,9 @@ class CMDLoop:
                 self.tlm['id'] = p1
                 retData = 'OK'
             
-            elif cmd == 'rst':
-                pass
+            elif cmd == 'reset':
+                self.eeprom.reset_eeprom()
+                retData = 'OK, please restart Sensor Monitor Board.'
             
             elif cmd == 'update_eeprom':
                 for dac in self.dacList:
@@ -384,19 +388,22 @@ class CMDLoop:
                 retData = 'OK'
 
             elif cmd == 'hipwr_mode':
-                if int(p2) == 0:
-                    self.hi_pwr_htrs[int(p1)-1].power_off()
-                elif int(p2) == 1:
-                    self.hi_pwr_htrs[int(p1)-1].power_on()
-                elif int(p2) == 2:
-                    # Thermostatic Control
-                    pass
+                self.hi_pwr_htrs[int(p1)-1].mode = int(p2)
                 retData = 'OK'
 
             elif cmd == 'hipwr_setpoint':
                 intP1 = int(p1 - 1)
                 self.hi_pwr_hts[intP1].setPoint = float(p2)
                 retData = 'OK'
+
+            elif cmd == 'hipwr_state':
+                if int(p2) == 0:
+                    self.hi_pwr_htrs[int(p1)-1].power_off()
+                    retData = 'OK'
+                elif int(p2) == 1:
+                    self.hi_pwr_htrs[int(p1)-1].power_on()
+                    retData = 'OK'
+                else: retData = 'BAD, must be 0 or 1'
 
             elif cmd == 'hipwr_hysteresis':
                 intP1 = int(p1 - 1)
@@ -413,10 +420,10 @@ class CMDLoop:
                 self.hi_pwr_htrs[intP1].min_temp = float(p2)
                 retData = 'OK'
 
-            elif cmd == 'sns_typ':
+            elif cmd == 'sns_type':
                 sns = int(p1 - 1)
-                sns_typ = int(p2)
-                self.adcList[sns].set_sns_typ(sns_typ)
+                sns_type = int(p2)
+                self.adcList[sns].set_sns_type(sns_type)
                 retData = 'OK'
 
             elif cmd == 'sns_units':
@@ -502,59 +509,119 @@ class CMDLoop:
                 board_id = self.tlm['id']
                 retData = f'id={board_id!r}'
             
-            elif cmd == 'dac_d':
-                intP1 = int(p1 - 1)
-                pid_d = self.dacList[intP1].kd
-                retData = f'pid_d_{int(p1)}={pid_d!r}'
+            elif cmd == 'sw_rev':
+                pass
 
-            elif cmd == 'hipwr_mode':
-                retData = self.hi_pwr_htrs[int(p1)-1].status()
-
-                if retData == 0:
-                    retData = 'off'
-                elif retData == 1:
-                    retData = 'on'
-                else:
-                    retData = 'BAD,GPIO read error'
-
-            elif cmd == 'dac_i':
-                intP1 = int(p1 - 1)
-                pid_i = self.dacList[intP1].ki
-                retData = f'pid_i_{int(p1)}={pid_i!r}'
+            elif cmd == 'eeprom':
+                self.eeprom.printout_eeprom()
+                retData = 'printing eeprom memory map to logger.'
 
             elif cmd == 'dac_lcs':
                 intP1 = int(p1 - 1)
                 sns_num = self.dacList[intP1].sns_num
-                retData = f'lcs_{int(p1)}={sns_num!r}'
-
-            elif cmd == 'sns_temp':
-                sns = str(p1)
-                sns = sns.split('.')[0]
-                snsName = 'sns_temp_'+sns
-                temp = self.tlm[snsName]
-                sns_units = self.adcList[int(p1)-1].sns_units
-                retData = f'sns_temp_{sns}={temp!r}{sns_units}'
+                retData = f'dac_lcs_{int(p1)}={sns_num!r}'
 
             elif cmd == 'dac_mode':
                 intP1 = int(p1 - 1)
                 mode = self.dacList[intP1].mode
                 retData = f'dac_mode_{int(p1)}={mode!r}'
+
+            elif cmd == 'dac_res':
+                intP1 = int(p1 - 1)
+                dac_res = self.dacList[intP1].htr_res
+                retData = f'dac_res_{int(p1)}={dac_res!r}'
+
+            elif cmd == 'dac_cur':
+                if p1 == 1:
+                    retData = 'dac_current_1='+str(self.tlm['dac_current_1'])
+                elif p1 == 2:
+                    retData = 'dac_current_2='+str(self.tlm['dac_current_2'])
+                else:
+                    retData = f'BAD,command failure: unknown arg {p1!r}'
+
+            elif cmd == 'dac_fp':
+                if p1 == 1:
+                    retData = 'dac_fp_1='+str(self.tlm['dac_fp_1'])
+                elif p1 == 2:
+                    retData = 'dac_fp_2='+str(self.tlm['dac_fp_2'])
+                else:
+                    retData = f'BAD,command failure: unknown arg {p1!r}'
+
+            elif cmd == 'dac_setpoint':
+                intP1 = int(p1 - 1)
+                setpoint = self.dacList[intP1].setPoint
+                retData = f'dac_setpoint_{int(p1)}={setpoint!r}'
+
+            elif cmd == 'dac_max_temp':
+                intP1 = int(p1 - 1)
+                dac_max_temp = self.dacList[intP1].max_temp
+                retData = f'dac_max_temp_{int(p1)}={dac_max_temp!r}'
             
-            elif cmd == 'sw_rev':
-                pass
+            elif cmd == 'dac_min_temp':
+                intP1 = int(p1 - 1)
+                dac_min_temp = self.dacList[intP1].min_temp
+                retData = f'dac_min_temp_{int(p1)}={dac_min_temp!r}'
 
             elif cmd == 'dac_p':
                 intP1 = int(p1 - 1)
                 pid_p = self.dacList[intP1].kp
                 retData = f'pid_p_{int(p1)}={pid_p!r}'
 
-            elif cmd == 'adc_filt':
-                pass
+            elif cmd == 'dac_i':
+                intP1 = int(p1 - 1)
+                pid_i = self.dacList[intP1].ki
+                retData = f'pid_i_{int(p1)}={pid_i!r}'
 
-            elif cmd == 'sns_typ':
+            elif cmd == 'dac_d':
+                intP1 = int(p1 - 1)
+                pid_d = self.dacList[intP1].kd
+                retData = f'pid_d_{int(p1)}={pid_d!r}'
+
+            elif cmd == 'hipwr_lcs':
+                intP1 = int(p1 - 1)
+                sns_num = self.hi_pwr_htrs[intP1].sns_num
+                retData = f'hi_pwr_lcs_{int(p1)}={sns_num!r}'
+
+            elif cmd == 'hipwr_mode':
+                mode = self.hi_pwr_htrs[int(p1)-1].mode
+                retData = f'hipwr_mode_{int(p1)}={mode!r}'
+
+            elif cmd == 'hipwr_setpoint':
+                intP1 = int(p1 - 1)
+                setpoint = self.hi_pwr_htrs[intP1].setPoint
+                retData = f'hipwr_setpoint_{int(p1)}={setpoint!r}'
+
+            elif cmd == 'hipwr_state':
+                state = self.hi_pwr_htrs[int(p1-1)].status()
+                retData = f'hipwr_state_{int(p1)}={state!r}'
+
+            elif cmd == 'hipwr_hysteresis':
+                intP1 = int(p1 - 1)
+                hysteresis = self.hi_pwr_htrs[intP1].hysteresis
+                retData = f'hipwr_hysteresis_{int(p1)}={hysteresis!r}'
+
+            elif cmd == 'hipwr_max_temp':
+                intP1 = int(p1 - 1)
+                hipwr_max_temp = self.hi_pwr_htrs[intP1].max_temp
+                retData = f'hipwr_max_temp_{int(p1)}={hipwr_max_temp!r}'
+            
+            elif cmd == 'hipwr_min_temp':
+                intP1 = int(p1 - 1)
+                hipwr_min_temp = self.hi_pwr_htrs[intP1].min_temp
+                retData = f'hipwr_min_temp_{int(p1)}={hipwr_min_temp!r}'
+
+            elif cmd == 'hipwr_current':
+                if p1 == 1:
+                    retData = 'hipwr_current_1='+str(self.tlm['hipwr_current_1'])
+                elif p1 == 2:
+                    retData = 'hipwr_current_2='+str(self.tlm['hipwr_current_2'])
+                else:
+                    retData = f'BAD,command failure: unknown arg {p1!r}'
+
+            elif cmd == 'sns_type':
                 sns = int(p1 - 1)
-                sns_typ = self.adcList[sns].sns_typ
-                retData = f'sns_typ_{int(p1)}={sns_typ}'
+                sns_type = self.adcList[sns].sns_type
+                retData = f'sns_type_{int(p1)}={sns_type}'
 
             elif cmd == 'sns_units':
                 sns = int(p1 - 1)
@@ -572,49 +639,16 @@ class CMDLoop:
                 calCoeffs = self.adcList[sns].get_calibration_coeffs()
                 retData = f'sns_cal_coeffs{int(p1)}={calCoeffs}'
 
-            elif cmd == 'dac_cur':
-                if p1 == 1:
-                    retData = 'dac_current_1='+str(self.tlm['dac_current_1'])
-                elif p1 == 2:
-                    retData = 'dac_current_2='+str(self.tlm['dac_current_2'])
-                else:
-                    retData = f'BAD,command failure: unknown arg {p1!r}'
-            
-            elif cmd == 'dac_fp':
-                if p1 == 1:
-                    retData = 'dac_fp_1='+str(self.tlm['dac_fp_1'])
-                elif p1 == 2:
-                    retData = 'dac_fp_2='+str(self.tlm['dac_fp_2'])
-                else:
-                    retData = f'BAD,command failure: unknown arg {p1!r}'
+            elif cmd == 'sns_temp':
+                sns = str(p1)
+                sns = sns.split('.')[0]
+                snsName = 'sns_temp_'+sns
+                temp = self.tlm[snsName]
+                sns_units = self.adcList[int(p1)-1].sns_units
+                retData = f'sns_temp_{sns}={temp!r}{sns_units}'
 
-            elif cmd == 'hipwr_cur':
-                if p1 == 1:
-                    retData = 'hipwr_current_1='+str(self.tlm['hipwr_current_1'])
-                elif p1 == 2:
-                    retData = 'hipwr_current_2='+str(self.tlm['hipwr_current_2'])
-                else:
-                    retData = f'BAD,command failure: unknown arg {p1!r}'
-
-            elif cmd == 'dac_setpoint':
-                intP1 = int(p1 - 1)
-                setpoint = self.dacList[intP1].setPoint
-                retData = f'setpoint={setpoint!r}'
-
-            elif cmd == 'dac_res':
-                intP1 = int(p1 - 1)
-                dac_res = self.dacList[intP1].htr_res
-                retData = f'dac_res={dac_res!r}'
-
-            elif cmd == 'dac_max_temp':
-                intP1 = int(p1 - 1)
-                dac_max_temp = self.dacList[intP1].max_temp
-                retData = f'dac_max_temp={dac_max_temp!r}'
-            
-            elif cmd == 'dac_min_temp':
-                intP1 = int(p1 - 1)
-                dac_min_temp = self.dacList[intP1].min_temp
-                retData = f'dac_min_temp={dac_min_temp!r}'
+            elif cmd == 'adc_filt':
+                pass
 
             elif cmd == 'excit':
                 intP1 = int(p1 - 1)
@@ -632,10 +666,6 @@ class CMDLoop:
                     retData = 'temp='+str(self.tlm['env_temp'])+'C,press='+str(self.tlm['env_press'])+'Pa,hum='+str(self.tlm['env_hum'])+'%'
                 else:
                     retData = f'BAD,command failure: unknown arg {p1!r}'
-
-            elif cmd == 'eeprom':
-                self.eeprom.printout_eeprom()
-                retData = 'printing eeprom memory map to logger.'
             
             else:
                 retData = f'BAD,command failure: unknown command {cmd!r}'

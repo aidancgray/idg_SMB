@@ -84,8 +84,11 @@ DEFAULT_BME280_DATA =   b'\x01' \
 BME_MEM_LENGTH = len(DEFAULT_BME280_DATA)
 
 HIPWR_EEPROM_START = 0x800
-DEFAULT_HIPWR_DATA =    b'\x00' \
-                        b'\x00' \
+DEFAULT_HIPWR_DATA =    b'\x00\x00' \
+                        b'\x00\x00' \
+                        b'\x00\x00\x00\x00' \
+                        b'\x00\x00\x00\x00' \
+                        b'\x43\x96\x00\x00' \
                         b'\x00\x00\x00\x00'
 HIPWR_MEM_LENGTH = 32
 
@@ -146,7 +149,7 @@ class EEPROM():
 
         # Check if eeprom has been initialized already
         if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
-            self._initialize_eeprom()
+            self.initialize_eeprom()
             print('eeprom initialized')
 
             if self.read(EEPROM_LOADED_ADDR, 1) != EEPROM_LOADED_VAL:
@@ -163,7 +166,7 @@ class EEPROM():
             self.write(addr, b'\xff')
         self.write(EEPROM_LOADED_ADDR, b'\xff')
 
-    def _initialize_eeprom(self):
+    def initialize_eeprom(self):
         """
         Set the default values of the eeprom. This is only done when
         the EEPROM_LOADED_VAL is not set.

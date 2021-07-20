@@ -54,7 +54,7 @@ class AD7124:
                                 'filler':       [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][30:32], byteorder='big', signed=False), 2],
                                 'GAIN_0':       [0x31, int.from_bytes(self.eeprom.ADCmem[self.idx][32:35], byteorder='big', signed=False), 3],
                                 'GAIN_1':       [0x32, int.from_bytes(self.eeprom.ADCmem[self.idx][35:38], byteorder='big', signed=False), 3],
-                                'SNS_TYP':      [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][38:39], byteorder='big', signed=False), 1],
+                                'SNS_TYPE':      [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][38:39], byteorder='big', signed=False), 1],
                                 'SNS_UNITS':    [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][39:40], byteorder='big', signed=False), 1],
                                 'CAL_MODE':     [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][40:41], byteorder='big', signed=False), 1],
                                 'CAL_COEFF_0':  [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][41:45], byteorder='big', signed=True), 4],
@@ -78,9 +78,9 @@ class AD7124:
             self.__adc_write_data(register[0], register[1], register[2])
 
         temp_calMode = self.AD7124_reg_dict['CAL_MODE'][1]  # 0=Default Calibration, 1=User set
-        self.sns_typ = self.AD7124_reg_dict['SNS_TYP'][1]  # 0=Not set, 1=PT100, 2=PT1000, 3=DIODE
+        self.sns_type = self.AD7124_reg_dict['SNS_TYPE'][1]  # 0=Not set, 1=2wire-PT100, 2=4wire-PT100, 3=2wire-PT1000, 4=4wire-PT1000, 5=2wire-DIODE, 6=4wire-DIODE
         self.set_sns_units(self.AD7124_reg_dict['SNS_UNITS'][1])  # 0=K, 1=C, 2=F
-        self.set_sns_typ()
+        self.set_sns_type()
 
         if temp_calMode == 1:
             calCoeffs = []
@@ -301,8 +301,8 @@ class AD7124:
         io_control_1 = self.get_IO_CONTROL_1()
         return io_control_1 >> 11 & 0b111
 
-    def get_sns_typ(self):
-        return self.sns_typ
+    def get_sns_type(self):
+        return self.sns_type
 
     def get_sns_units(self):
         return self.sns_units
@@ -324,7 +324,7 @@ class AD7124:
             #print(f'tmpData={dataTmp}')
 
             ## For reading diode voltage w/o conversion
-            # if self.sns_typ == 3:
+            # if self.sns_type == 3:
             #     temperature = dataTmp
             # else:
             #     temperature = self.calib_fit.calib_t(dataTmp)
@@ -509,13 +509,13 @@ class AD7124:
 
         self.set_IO_CONTROL_1(io_control_1)
 
-    def set_sns_typ(self, sns=None):
+    def set_sns_type(self, sns=None):
         if sns != None:
-            self.sns_typ = sns
+            self.sns_type = sns
 
-        self.AD7124_reg_dict['SNS_TYP'][1] = self.sns_typ
+        self.AD7124_reg_dict['SNS_TYPE'][1] = self.sns_type
 
-        if self.sns_typ == 1:
+        if self.sns_type == 1:
             # PT-100 2-Wire
             self.set_excitation_current(3)  # 3=250uA
             self.set_pga(16)  # 16=16x Gain
@@ -530,7 +530,7 @@ class AD7124:
             self.calMode = 0
             self.AD7124_reg_dict['CAL_MODE'][1] = 0
         
-        elif self.sns_typ == 2:
+        elif self.sns_type == 2:
             # PT-100 4-Wire
             self.set_excitation_current(3)  # 3=250uA
             self.set_pga(16)  # 16=16x Gain
@@ -545,7 +545,7 @@ class AD7124:
             self.calMode = 0
             self.AD7124_reg_dict['CAL_MODE'][1] = 0
 
-        elif self.sns_typ == 3:
+        elif self.sns_type == 3:
             # PT-1000 2-Wire
             self.set_excitation_current(3)  # 3=250uA
             self.set_pga(2)  # 2=2x Gain
@@ -560,7 +560,7 @@ class AD7124:
             self.calMode = 0
             self.AD7124_reg_dict['CAL_MODE'][1] = 0
 
-        elif self.sns_typ == 4:
+        elif self.sns_type == 4:
             # PT-1000 4-Wire
             self.set_excitation_current(3)  # 3=250uA
             self.set_pga(2)  # 2=2x Gain
@@ -575,7 +575,7 @@ class AD7124:
             self.calMode = 0
             self.AD7124_reg_dict['CAL_MODE'][1] = 0
         
-        elif self.sns_typ == 5:
+        elif self.sns_type == 5:
             # DIODE 2-Wire
             self.set_excitation_current(1)  # 1=50uA
             self.set_pga(1)  # 1=1x Gain
@@ -590,7 +590,7 @@ class AD7124:
             self.calMode = 0
             self.AD7124_reg_dict['CAL_MODE'][1] = 0
 
-        elif self.sns_typ == 6:
+        elif self.sns_type == 6:
             # DIODE 4-Wire
             self.set_excitation_current(4)  # 1=50uA
             self.set_pga(1)  # 1=1x Gain
