@@ -35,6 +35,7 @@ DEFAULT_DAC_DATA_1 = b'\x00\x00' \
                      b'\x43\x96\x00\x00'
 
 DEFAULT_DAC_DATA_2 = b'\x00\x00\x00\x00' \
+                     b'\x00\x00\x00\x00' \
                      b'\x00\x00\x00\x00'
 DAC_MEM_LENGTH = 64
 

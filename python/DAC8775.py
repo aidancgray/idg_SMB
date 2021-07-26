@@ -29,8 +29,8 @@ class DAC():
         self.io = io    # GPIO
         self.eeprom = eeprom
         self.tlm = tlm
-        self.max_current = None
-        self.power = None
+        self.max_current = 0
+        self.power = 0
 
         self.DAC_reg_dict = {
                             'MODE':         [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][0:2], byteorder='big', signed=False), 2],
@@ -43,7 +43,8 @@ class DAC():
                             'HYSTERESIS':   [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][24:28], byteorder='big', signed=False), 4],
                             'MAX_TEMP':     [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][28:32], byteorder='big', signed=True), 4],
                             'MIN_TEMP':     [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][32:36], byteorder='big', signed=True), 4],
-                            'FIXED_PERCENT':[0x00, int.from_bytes(self.eeprom.DACmem[self.idx][36:40], byteorder='big', signed=False), 4]
+                            'FIXED_PERCENT':[0x00, int.from_bytes(self.eeprom.DACmem[self.idx][36:40], byteorder='big', signed=False), 4],
+                            'CONTROL_VAR':  [0x00, int.from_bytes(self.eeprom.DACmem[self.idx][40:44], byteorder='big', signed=False), 4]
                             }
 
         # GPIO Pins
@@ -72,12 +73,12 @@ class DAC():
         self.__set_setPoint(self.int_to_float(self.DAC_reg_dict['SETPOINT'][1], sign=True))         # setpoint
         self.__set_htr_res(self.int_to_float(self.DAC_reg_dict['HTR_RES'][1], sign=False))          # Heater resistance
         self.__set_hysteresis(self.int_to_float(self.DAC_reg_dict['HYSTERESIS'][1], sign=False))    # Allowable range for HIPWR
-        self.__set_controlVar(0)                                                                    # control variable
         self.__set_rebootMode(False)                                                                # False: Reset PID values on reboot
         self.__set_max_temp(self.int_to_float(self.DAC_reg_dict['MAX_TEMP'][1], sign=True))         # Maximum temperature before heater shutoff
         self.__set_min_temp(self.int_to_float(self.DAC_reg_dict['MIN_TEMP'][1], sign=True))         # Minimum temperature before cooler shutoff
         self.__set_fixed_percent(self.int_to_float(self.DAC_reg_dict['FIXED_PERCENT'][1], sign=False))  # Fixed Percent value (0.0 -> 1.0)
         self.__set_mode(self.DAC_reg_dict['MODE'][1])                                               # 0=DISABLED, 1=Fixed%, 2=PID, or 3=Set Current
+        self.__set_controlVar(self.int_to_float(self.DAC_reg_dict['CONTROL_VAR'][1], sign=False))   # control variable
 
     """
     DAC Functions: read/write/etc
@@ -301,8 +302,14 @@ class DAC():
         Input:
         - cv: float
         """
-
+        
+        if self.htr_res == 0:
+            self.power = 0
+        else:
+            self.power = cv**2 * self.htr_res
         self.tlm[f'dac_current_{self.idx+1}'] = cv
+        self.tlm[f'dac_power_{self.idx+1}'] = self.power
+
         if self.max_current != 0:
             controlVar_t = int((cv / self.max_current) * 2**18) # Current in the range of 0 - 2**18
         else:
@@ -352,6 +359,8 @@ class DAC():
         if var == 1 or var == 2 or var == 3 or var == 0:
             self.DAC_reg_dict['MODE'][1] = var
             self.__mode = var
+            if var == 0:
+                self.write_control_var(0)
         else:
             raise DACError("Failed to initialize DAC. Improper Mode.")
 
@@ -439,6 +448,7 @@ class DAC():
         return self.__controlVar
 
     def __set_controlVar(self, var):
+        self.DAC_reg_dict['CONTROL_VAR'][1] = self.float_to_int(var, sign=False)
         self.__controlVar = var
 
     def __get_rebootMode(self):

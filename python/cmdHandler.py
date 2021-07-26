@@ -67,8 +67,8 @@ class CMDLoop:
 
                 for n in range(len(self.adcList)):
                     temp = round(self.adcList[n].get_temperature(), 3)
-                    if temp == -999:
-                        temp = '---'
+                    # if temp == -999:
+                    #     temp = '---'
                     
                     sns_unitsTmp = self.adcList[n].sns_units
 
@@ -102,9 +102,11 @@ class CMDLoop:
 
                         setpoint = dac.setPoint
                         try:
-                            power = round(dac.power, 5)
-                            current = round(dac.controlVar, 5)
-                        except:
+                            power = round(self.tlm[f'dac_power_{dac.idx+1}'], 5)
+                            current = round(self.tlm[f'dac_current_{dac.idx+1}'], 5)
+
+                        except Exception as e:
+                            print(f'error: {e}')
                             power = 0
                             current = 0
                         

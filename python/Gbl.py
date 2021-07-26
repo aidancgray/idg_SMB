@@ -39,6 +39,8 @@ telemetry = {
     'sns_units_12': 'K',
     'dac_fp_1': 0.0,
     'dac_fp_2': 0.0,
+    'dac_power_1': 0.0,
+    'dac_power_2': 0.0,
     'dac_current_1': 0.0,
     'dac_current_2': 0.0,
     'hipwr_current_1': 0.0,
