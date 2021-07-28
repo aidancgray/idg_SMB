@@ -649,6 +649,20 @@ class CMDLoop:
                 sns_units = self.adcList[int(p1)-1].sns_units
                 retData = f'sns_temp_{sns}={temp!r}{sns_units}'
 
+            elif cmd == 'sns_res':
+                sns = str(p1)
+                sns = sns.split('.')[0]
+                snsName = 'sns_res_'+sns
+                res = self.tlm[snsName]
+                retData = f'sns_res_{sns}={res!r}'
+
+            elif cmd == 'sns_volts':
+                sns = str(p1)
+                sns = sns.split('.')[0]
+                snsName = 'sns_volts_'+sns
+                volts = self.tlm[snsName]
+                retData = f'sns_volts_{sns}={volts!r}'
+
             elif cmd == 'adc_filt':
                 pass
 

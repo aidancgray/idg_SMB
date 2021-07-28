@@ -324,10 +324,10 @@ class AD7124:
             #print(f'tmpData={dataTmp}')
 
             ## For reading diode voltage w/o conversion
-            # if self.sns_type == 3:
-            #     temperature = dataTmp
-            # else:
-            #     temperature = self.calib_fit.calib_t(dataTmp)
+            if self.sns_type == 5 or self.sns_type == 6:
+                self.tlm[f'sns_volts_{self.idx+1}'] = dataTmp
+            else:
+                self.tlm[f'sns_res_{self.idx+1}'] = dataTmp
 
             temperature = self.calib_fit.calib_t(dataTmp)
 
@@ -592,7 +592,7 @@ class AD7124:
 
         elif self.sns_type == 6:
             # DIODE 4-Wire
-            self.set_excitation_current(4)  # 1=50uA
+            self.set_excitation_current(1)  # 1=50uA
             self.set_pga(1)  # 1=1x Gain
             self.set_refin(3)  # 3=internal reference
             self.set_refV('lo')  # 'lo'=small resistor
