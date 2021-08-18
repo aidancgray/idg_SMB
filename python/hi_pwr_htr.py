@@ -29,13 +29,6 @@ class hi_pwr_htr():
                                     'MIN_TEMP':     [int.from_bytes(self.eeprom.HIPWRmem[self.idx][16:20], byteorder='big', signed=True), 4]
                                     }
 
-        self.mode = self.hi_pwr_htr_reg_dict['MODE'][0]         # 0=Disabled, 1=Enabled, 2=HYSTERESIS
-        self.sns_num = self.hi_pwr_htr_reg_dict['SNS_NUM'][0]
-        self.setPoint = self.hi_pwr_htr_reg_dict['SETPOINT'][0]
-        self.hysteresis = self.hi_pwr_htr_reg_dict['HYSTERESIS'][0]
-        self.max_temp = self.hi_pwr_htr_reg_dict['MAX_TEMP'][0]
-        self.min_temp = self.hi_pwr_htr_reg_dict['MIN_TEMP'][0]
-
         if self.idx == 0:
             self.hi_pwr_en_pin = self.io.pin_map['HI_PWR_EN1']
         elif self.idx == 1:
@@ -43,6 +36,14 @@ class hi_pwr_htr():
         
         GPIO.setup(self.hi_pwr_en_pin, GPIO.OUT)
         GPIO.output(self.hi_pwr_en_pin, 0)
+
+        # Heater Parameters
+        self.__set_mode(self.hi_pwr_htr_reg_dict['MODE'][0])  # 0=Disabled, 1=Enabled, 2=HYSTERESIS
+        self.__set_sns_num(self.hi_pwr_htr_reg_dict['SNS_NUM'][0])  # Sensor (AD7124) number (1-12)
+        self.__set_setPoint(self.int_to_float(self.hi_pwr_htr_reg_dict['SETPOINT'][0], sign=True))  # setpoint
+        self.__set_hysteresis(self.int_to_float(self.hi_pwr_htr_reg_dict['HYSTERESIS'][0], sign=False)) # Allowable range for HYSTERESIS mode
+        self.__set_max_temp(self.int_to_float(self.hi_pwr_htr_reg_dict['MAX_TEMP'][0], sign=True))  # Maximum temperature before heater shutoff
+        self.__set_min_temp(self.int_to_float(self.hi_pwr_htr_reg_dict['MIN_TEMP'][0], sign=True))  # Minimum temperature before heater shutoff
 
     def float_to_int(self, f, sign=False):
         i = int.from_bytes(bytearray(struct.pack(">f", f)), byteorder='big', signed=sign)
@@ -52,12 +53,6 @@ class hi_pwr_htr():
         fTmp = struct.unpack(">f", i.to_bytes(4, byteorder='big', signed=sign))
         f= fTmp[0]
         return f
-
-    def set_mode(self, mode):
-        if mode == 0 or mode == 1 or mode == 2:
-            self.mode = mode
-        else:
-            raise HIPWRError("Invalid Mode. Must be 0=Disabled, 1=USER_SET, 2=HYSTERESIS.")
 
     def power_on(self):
         GPIO.output(self.hi_pwr_en_pin, 1)
@@ -88,12 +83,69 @@ class hi_pwr_htr():
         elif temp <= hystLower:
             self.power_on()
 
+    def __set_mode(self, var):
+        if var == 0 or var == 1 or var == 2:
+            self.hi_pwr_htr_reg_dict['MODE'][0] = var
+            self.__mode = var
+        else:
+            raise HIPWRError("Invalid Mode. Must be 0=Disabled, 1=USER_SET, 2=HYSTERESIS.")
+    
+    def __get_mode(self):
+        return self.__mode
+
+    def __set_sns_num(self, var):
+        self.hi_pwr_htr_reg_dict['SNS_NUM'][0] = var
+        self.__sns_num = var
+
+    def __get_sns_num(self):
+        return self.__sns_num
+
+    def __set_setPoint(self, var):
+        self.hi_pwr_htr_reg_dict['SETPOINT'][0] = self.float_to_int(var, sign=True)
+        self.__setPoint = var
+
+    def __get_setPoint(self):
+        return self.__setPoint
+
+    def __set_hysteresis(self, var):
+        self.hi_pwr_htr_reg_dict['HYSTERESIS'][0] = self.float_to_int(var, sign=False)
+        self.__hysteresis = var
+
+    def __get_hysteresis(self):
+        return self.__hysteresis
+
+    def __set_max_temp(self, var):
+        self.hi_pwr_htr_reg_dict['MAX_TEMP'][0] = self.float_to_int(var, sign=True)
+        self.__max_temp = var
+
+    def __get_max_temp(self):
+        return self.__max_temp
+
+    def __set_min_temp(self, var):
+        self.hi_pwr_htr_reg_dict['MIN_TEMP'][0] = self.float_to_int(var, sign=True)
+        self.__min_temp = var
+
+    def __get_min_temp(self):
+        return self.__min_temp
+
+    mode = property(__get_mode, __set_mode)
+    sns_num = property(__get_sns_num, __set_sns_num)
+    setPoint = property(__get_setPoint, __set_setPoint)
+    hysteresis = property(__get_hysteresis, __set_hysteresis)
+    max_temp = property(__get_max_temp, __set_max_temp)
+    min_temp = property(__get_min_temp, __set_min_temp)
+
     def update_eeprom_mem(self):
         HIPWRbyteArray = bytearray()
 
         for reg in self.hi_pwr_htr_reg_dict:
             register = self.hi_pwr_htr_reg_dict[reg]
-            regByteArray = register[0].to_bytes(register[1], byteorder='big')
+
+            if reg == 'SETPOINT' or reg == 'MAX_TEMP' or reg == 'MIN_TEMP':
+                regByteArray = register[0].to_bytes(register[1], byteorder='big', signed=True)
+            else:
+                regByteArray = register[0].to_bytes(register[1], byteorder='big', signed=False)
+            
             HIPWRbyteArray.extend(regByteArray)
 
         self.eeprom.HIPWRmem[self.idx] = HIPWRbyteArray
