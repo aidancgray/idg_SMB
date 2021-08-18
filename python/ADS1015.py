@@ -32,8 +32,8 @@ class ADS1015:
         self.confAddr = self.ADS1015_reg_dict['confAIN_0'][0]
         self.confAIN_0 = self.ADS1015_reg_dict['confAIN_0'][1]  # AIN0 & AIN1 = 000
         self.confAIN_3 = self.ADS1015_reg_dict['confAIN_3'][1]  # AIN2 & AIN3 = 011
-        self.conversionGain = 1     #0.03367
-        self.conversionOffset = 0.0
+        self.conversionGain = 0.02647     
+        self.conversionOffset = 39.915
 
     def _write(self, regAddr, data):
         """ 
@@ -92,7 +92,10 @@ class ADS1015:
     def conversion_read(self):
         convData = self._read(self.convAddr, 2)
         convData = int.from_bytes(convData, byteorder='big')
-        adjData = (convData * self.conversionGain) + self.conversionOffset
+        if convData == 0:
+            adjData = 0
+        else:
+            adjData = (convData * self.conversionGain) + self.conversionOffset
         return adjData
 
     # Check if a conversion is occurring
