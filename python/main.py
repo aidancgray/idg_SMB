@@ -11,7 +11,7 @@ import sys
 import asyncio
 import argparse
 import shlex
-import socket
+import netifaces
 
 import GPIO_config
 import Gbl
@@ -30,20 +30,6 @@ from UDPcast import UDPcast
 def custom_except_hook(loop, context):
     if repr(context['exception']) == 'SystemExit()':
         print('Exiting Program...')
-
-def get_ip():
-    """
-    Return the machine's current IP address if available, localhost otherwise.
-    """
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(('10.255.255.255', 1))
-        ip_address = s.getsockname()[0]
-    except:
-        ip_address = '127.0.0.1'
-    finally:
-        s.close()
-    return ip_address
 
 async def runSMB(opts):
     logging.basicConfig(datefmt = "%Y-%m-%d %H:%M:%S",
@@ -74,16 +60,15 @@ async def runSMB(opts):
     for i in range(12):
         adcList.append(AD7124(i, io, eeprom, tlm, cal))
     
-    ip_address = get_ip()
+    ip_address = netifaces.ifaddresses('eth0')[netifaces.AF_INET][0]['addr']
+    udp_address = netifaces.ifaddresses('eth0')[netifaces.AF_INET][0]['broadcast']
     logger.info(f'IP:  {ip_address}')
-
-    udp_addressTmp = ".".join(ip_address.split('.')[0:-1]) + '.255'
-    logger.info(f'UDP: {udp_addressTmp}')
+    logger.info(f'UDP: {udp_address}')
 
     tcpServer = TCPServer(ip_address, 1024)
     cmdHandler = CMDLoop(tcpServer.qCmd, tcpServer.qXmit, eeprom, tlm, cal, io, bme280, ads1015, hi_pwr_htrs, dacList, adcList)
     transmitter = Transmitter(tcpServer.qXmit)
-    udpServer = UDPcast(opts.udpAddress, 8888, cmdHandler.qUDP)
+    udpServer = UDPcast(udp_address, 8888, cmdHandler.qUDP)
 
     await asyncio.gather(tcpServer.start(), cmdHandler.start(), transmitter.start(), udpServer.start())
 
@@ -98,8 +83,6 @@ def main(argv=None):
                         help='logging threshold. 10=debug, 20=info, 30=warn')
     parser.add_argument('--sensorPeriod', type=float, default=1.0,
                         help='how often to sample the sensors')
-    parser.add_argument('--udpAddress', type=str, default='172.16.0.255',
-                        help='the UDP broadcast address')
 
     opts = parser.parse_args(argv)
     loop = asyncio.get_event_loop()
