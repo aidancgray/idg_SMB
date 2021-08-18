@@ -293,7 +293,7 @@ class CMDLoop:
             # Handle each command case
             
             if cmd == 'id':
-                self.tlm['id'] = p1
+                self.tlm['id'] = int(p1)
                 retData = 'OK'
             
             elif cmd == 'reset':
@@ -647,6 +647,14 @@ class CMDLoop:
                 snsName = 'sns_temp_'+sns
                 temp = self.tlm[snsName]
                 sns_units = self.adcList[int(p1)-1].sns_units
+                if sns_units == 0:
+                    sns_units = 'K'
+                elif sns_units == 1:
+                    sns_units = 'C'
+                elif sns_units == 2:
+                    sns_units = 'F'
+                else:
+                    raise ValueError(f"Unknown Sensor Units:{sns_units} 0=K, 1=C, 2=F")
                 retData = f'sns_temp_{sns}={temp!r}{sns_units}'
 
             elif cmd == 'sns_res':
