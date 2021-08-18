@@ -100,7 +100,7 @@ cmd_set_dict = {
                 'P1_MIN': 1,
                 'P1_MAX': 2,
                 'P2_MIN': 0,
-                'P2_MAX': 2,
+                'P2_MAX': 12,
                 'DESC': 'Set control sensor #'},
         'hipwr_mode': {'P#': 2,
                 'P1_MIN': 1,
