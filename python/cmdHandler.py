@@ -53,17 +53,19 @@ class CMDLoop:
                 
                 # check which conversion happened last
                 if lastConvert == 0:
-                    self.tlm['htr_current1'] = lastCurrent
+                    self.tlm['hipwr_current_1'] = lastCurrent
                     self.ads1015.convert_3()
 
                 elif lastConvert == 3:
-                    self.tlm['htr_current2'] = lastCurrent
+                    self.tlm['hipwr_current_2'] = lastCurrent
                     self.ads1015.convert_0()
 
             ### Temperature Sensor ###
             # Update temperature values every 1 second
             if newTime - tempTime >= 1:
                 now = datetime.now()
+                hp_cur1 = self.tlm['hipwr_current_1']
+                hp_cur2 = self.tlm['hipwr_current_2']
 
                 for n in range(len(self.adcList)):
                     temp = round(self.adcList[n].get_temperature(), 3)
@@ -102,15 +104,15 @@ class CMDLoop:
 
                         setpoint = dac.setPoint
                         try:
-                            power = round(self.tlm[f'dac_power_{dac.idx+1}'], 5)
+                            #power = round(self.tlm[f'dac_power_{dac.idx+1}'], 5)
                             current = round(self.tlm[f'dac_current_{dac.idx+1}'], 5)
 
                         except Exception as e:
                             print(f'error: {e}')
-                            power = 0
+                            #power = 0
                             current = 0
                         
-                        self.enqueue_udp(f'{now}, DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, power={power}, current={current}')
+                        self.enqueue_udp(f'{now}, DAC_{dac.idx}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, current={current}A')
                         
                         if temp < dac.max_temp and temp > dac.min_temp:
                             if dac.mode == 1:
@@ -126,12 +128,30 @@ class CMDLoop:
                 for htr in self.hi_pwr_htrs:
                     if htr.sns_num != 0 and htr.mode != 0:
                         temp = self.tlm['sns_temp_'+str(htr.sns_num)]
-                        units = self.adcList[htr.sns_num-1].get_sns_units()
-                        self.logger.info(f'HIPWR_{htr.idx}: temp={temp}, units={units}')
+                        sns_unitsTmp = self.adcList[htr.sns_num-1].get_sns_units()
+                        if sns_unitsTmp == 0:
+                            sns_units = 'K'
+                        elif sns_unitsTmp == 1:
+                            sns_units = 'C'
+                        elif sns_unitsTmp == 2:
+                            sns_units = 'F'
+                        else:
+                            raise ValueError(f"Unknown Sensor Units:{sns_unitsTmp} 0=K, 1=C, 2=F")
+                        
+                        setpoint = htr.setPoint
+
+                        try:
+                            current = round(self.tlm[f'hipwr_current_{htr.idx+1}'], 5)
+
+                        except Exception as e:
+                            print(f'error: {e}')
+                            current = 0
+
+                        self.enqueue_udp(f'HIPWR_{htr.idx+1}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, current={current}mA')
                         
                         if temp < htr.max_temp and temp > htr.min_temp:
                             if htr.mode == 2:
-                                htr.update_htr(temp, units)
+                                htr.update_htr(temp, sns_units)
                         else:
                             htr.power_off()
 
@@ -395,7 +415,7 @@ class CMDLoop:
 
             elif cmd == 'hipwr_setpoint':
                 intP1 = int(p1 - 1)
-                self.hi_pwr_hts[intP1].setPoint = float(p2)
+                self.hi_pwr_htrs[intP1].setPoint = float(p2)
                 retData = 'OK'
 
             elif cmd == 'hipwr_state':
@@ -409,7 +429,7 @@ class CMDLoop:
 
             elif cmd == 'hipwr_hysteresis':
                 intP1 = int(p1 - 1)
-                self.hi_pwr_hts[intP1].hysteresis = float(p2)
+                self.hi_pwr_htrs[intP1].hysteresis = float(p2)
                 retData = 'OK'
 
             elif cmd == 'hipwr_max_temp':
@@ -614,9 +634,9 @@ class CMDLoop:
 
             elif cmd == 'hipwr_current':
                 if p1 == 1:
-                    retData = 'hipwr_current_1='+str(self.tlm['hipwr_current_1'])
+                    retData = 'hipwr_current_1='+str("{:.2f}".format(self.tlm['hipwr_current_1']))+'mA'
                 elif p1 == 2:
-                    retData = 'hipwr_current_2='+str(self.tlm['hipwr_current_2'])
+                    retData = 'hipwr_current_2='+str("{:.2f}".format(self.tlm['hipwr_current_2']))+'mA'
                 else:
                     retData = f'BAD,command failure: unknown arg {p1!r}'
 
@@ -700,7 +720,7 @@ class CMDLoop:
 
         except Exception as e1:
             retData = 'BAD,command failure: expected args float or int'
-            self.logger.error(retData)
+            self.logger.error(f'{retData}')
             return retData
 
     async def legacy_command_parser(self, cmdStr):
