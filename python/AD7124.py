@@ -325,6 +325,7 @@ class AD7124:
 
             ## For reading diode voltage w/o conversion
             if self.sns_type == 5 or self.sns_type == 6:
+                dataTmp = 1.07267 * dataTmp - 0.08919  # Correct for the 50uA excitation current...
                 self.tlm[f'sns_volts_{self.idx+1}'] = dataTmp
             else:
                 self.tlm[f'sns_res_{self.idx+1}'] = dataTmp
