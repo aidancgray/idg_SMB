@@ -147,7 +147,7 @@ class CMDLoop:
                             print(f'error: {e}')
                             current = 0
 
-                        self.enqueue_udp(f'HIPWR_{htr.idx+1}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, current={current}mA')
+                        self.enqueue_udp(f'HIPWR_{htr.idx+1}: temp={temp}{sns_units}, setpoint={setpoint}{sns_units}, current={current}A')
                         
                         if temp < htr.max_temp and temp > htr.min_temp:
                             if htr.mode == 2:
