@@ -235,9 +235,9 @@ class DAC():
         spUnits = self.tlm['sns_temp_'+str(self.sns_num)]
         if spUnits == 'K':
             setPointK = self.setPoint
-        elif units == 1:
+        elif spUnits == 'C':
             setPointK = self.setPoint + 273.15
-        elif units == 2:
+        elif spUnits == 'F':
             setPointK = ((self.setPoint - 32) * (5 / 9)) + 273.15
         else:
             raise AD7124Error("Invalid units. Cannot update DAC.")
