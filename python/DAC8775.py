@@ -232,7 +232,7 @@ class DAC():
             raise AD7124Error("Invalid units. Cannot update DAC.")
 
         # Convert Setpoint to Kelvin
-        spUnits = self.tlm['sns_temp_'+str(self.sns_num)]
+        spUnits = self.tlm['sns_units_'+str(self.sns_num)]
         if spUnits == 'K':
             setPointK = self.setPoint
         elif spUnits == 'C':
@@ -240,6 +240,7 @@ class DAC():
         elif spUnits == 'F':
             setPointK = ((self.setPoint - 32) * (5 / 9)) + 273.15
         else:
+            print(f'spUnits={spUnits}.')
             raise AD7124Error("Invalid units. Cannot update DAC.")
 
         et = setPointK - pv # calculate e(t)
