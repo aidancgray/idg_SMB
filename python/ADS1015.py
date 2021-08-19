@@ -95,7 +95,7 @@ class ADS1015:
         if convData == 0:
             adjData = 0
         else:
-            adjData = (convData * self.conversionGain) + self.conversionOffset
+            adjData = ((convData * self.conversionGain) + self.conversionOffset) / 1000.0
         return adjData
 
     # Check if a conversion is occurring
