@@ -365,7 +365,7 @@ class CMDLoop:
                 self.dacList[intP1].htr_res = p2
                 retData = 'OK'
 
-            elif cmd == 'dac_cur':
+            elif cmd == 'dac_current':
                 intP1 = int(p1 - 1)
                 self.dacList[intP1].controlVar = float(p2)
                 retData = 'OK'
@@ -553,7 +553,7 @@ class CMDLoop:
                 dac_res = self.dacList[intP1].htr_res
                 retData = f'dac_res_{int(p1)}={dac_res!r}'
 
-            elif cmd == 'dac_cur':
+            elif cmd == 'dac_current':
                 if p1 == 1:
                     retData = 'dac_current_1='+str(self.tlm['dac_current_1'])
                 elif p1 == 2:
