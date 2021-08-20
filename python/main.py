@@ -45,6 +45,8 @@ async def runSMB(opts):
     cal = Gbl.sensor_cal # Sensor Calibration dictionary
     io = GPIO_config.io()  # GPIO pin configuration
 
+    tlm['id'] = int.from_bytes(eeprom.BoardIDmem, byteorder='big')
+
     bme280 = BME280(eeprom)  # Onboard Temperature, Pressure, and Humidity Sensor
     ads1015 = ADS1015(eeprom)  # ADS1015
 

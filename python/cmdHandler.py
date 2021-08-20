@@ -313,7 +313,7 @@ class CMDLoop:
             # Handle each command case
             
             if cmd == 'id':
-                self.tlm['id'] = int(p1)
+                await self.board_id(int(p1))
                 retData = 'OK'
             
             elif cmd == 'reset':
@@ -722,6 +722,12 @@ class CMDLoop:
             retData = 'BAD,command failure: expected args float or int'
             self.logger.error(f'{retData}')
             return retData
+
+    async def board_id(self, id):
+        self.tlm['id'] = id
+        BoardIDbyteArray = bytearray()
+        BoardIDbyteArray.extend(id.to_bytes(4, byteorder='big'))
+        self.eeprom.BoardIDmem = BoardIDbyteArray
 
     async def legacy_command_parser(self, cmdStr):
         retData = 'legacy_command_parser is not complete'

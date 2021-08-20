@@ -22,6 +22,10 @@ DEV_ID = 0x50
 EEPROM_LOADED_ADDR = 8191
 EEPROM_LOADED_VAL = b'\xAA'
 
+BOARD_ID_START = 0xA00
+DEFAULT_BOARD_ID = b'\x00\x00\x00\x00'
+BOARD_ID_MEM_LENGTH = len(DEFAULT_BOARD_ID)
+
 DAC_EEPROM_START = 0x0
 
 DEFAULT_DAC_DATA_1 = b'\x00\x00' \
@@ -112,6 +116,10 @@ class EEPROM():
         self.reset = reset
 
         #EEProm memory map
+        # Board ID
+        self.BoardIDmem = 0
+        self.BoardIDaddr = BOARD_ID_START
+
         # DAC byte addresses
         self.DACmem = []
         self.DACaddr = []
@@ -163,7 +171,7 @@ class EEPROM():
         Clear out all of the memory in the EEPROM and clear the 
         EEPROM_LOADED bit.
         '''
-        for addr in range(0xA00):
+        for addr in range(0xAAA):
             self.write(addr, b'\xff')
         self.write(EEPROM_LOADED_ADDR, b'\xff')
 
@@ -172,6 +180,9 @@ class EEPROM():
         Set the default values of the eeprom. This is only done when
         the EEPROM_LOADED_VAL is not set.
         """
+        # Write default board ID
+        self.write(self.BoardIDaddr, DEFAULT_BOARD_ID)
+
         # Write default values to DAC0-3
         for DAC in self.DACaddr:
             self.write(DAC, DEFAULT_DAC_DATA_1)
@@ -254,6 +265,9 @@ class EEPROM():
         Read out all contents of the EEPROM according to the memory map
         and stuff the data into the appropriate memory lists.
         """
+        # Board ID
+        self.BoardIDmem = []
+        self.BoardIDmem = self.read(self.BoardIDaddr, BOARD_ID_MEM_LENGTH)
 
         # DACs
         self.DACmem = []
@@ -284,6 +298,8 @@ class EEPROM():
             self.PIDmem.append(self.read(self.PIDaddr[n], PID_MEM_LENGTH))
 
     def printout_eeprom(self):
+        self.logger.info(f'Board_ID={self.BoardIDmem}')
+
         for n in range(len(self.DACmem)):
             self.logger.info(f'DACmem_{n}={self.DACmem[n]}')
 
@@ -304,7 +320,9 @@ class EEPROM():
         """
         Fill the EEPROM according to the memory map.
         """
-
+        # Board ID
+        self.write(self.BoardIDaddr, self.BoardIDmem)
+        
         # DACs
         for n in range(len(self.DACaddr)):
             self.write(self.DACaddr[n], self.DACmem[n][0:len(DEFAULT_DAC_DATA_1)])
