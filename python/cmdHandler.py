@@ -482,6 +482,11 @@ class CMDLoop:
                 calCoeffs = p2.split(';')
                 retData = self.adcList[sns].set_calibration_coeffs(calCoeffs)
 
+            elif cmd == 'reset_adc':
+                sns = int(p1 - 1)
+                self.adcList[sns].reset()
+                retData = 'OK'
+
             elif cmd == 'adc_filt':
                 pass
             

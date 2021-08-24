@@ -102,6 +102,15 @@ class AD7124:
         GPIO.output(self.sync, 1)  # SYNC(CS) HIGH
         time.sleep(DELAY)
 
+        for n in list(self.AD7124_reg_dict)[0:10]:
+            register = self.AD7124_reg_dict[n]
+            self.__adc_write_data(register[0], register[1], register[2])
+
+        while self.get_POR_FLAG():
+            time.sleep(0.1)
+            print('...')
+
+
     def __adc_xmit_data(self, readWrite, regAddr, data, dataSize):
         """
         Write data to the ADC
@@ -241,6 +250,13 @@ class AD7124:
     def get_STATUS(self):
         return self.__adc_read_data(0x00, 1)
 
+    def get_POR_FLAG(self):
+        status = self.get_STATUS()
+        if status & (1 << 4) != 0:
+            return True
+        else:
+            return False
+
     def get_ADC_CONTROL(self):
         return self.__adc_read_data(0x01, 2)
 
@@ -320,6 +336,7 @@ class AD7124:
     def get_temperature(self):
         if self.calib_fit != None:
             data = self.get_DATA()
+            #print(f'{self.idx+1}={data}')
             dataTmp = ((float(data) * float(self.vref)) / (float(2**24) * float(self.excit_cur))) / float(self.gain)
             #print(f'tmpData={dataTmp}')
 
