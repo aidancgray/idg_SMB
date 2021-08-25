@@ -71,7 +71,11 @@ class AD7124:
                                 }
 
         if self.idx == 0:
-            self.AD7124_reg_dict['ADC_CONTROL'][1] += 1
+            # Change CLK_SEL bits to clock at CLK pin only for first ADC
+            adcC = self.AD7124_reg_dict['ADC_CONTROL'][1]
+            adcC |= (1<<0)
+            adcC &=~ (1<<1)
+            self.AD7124_reg_dict['ADC_CONTROL'][1] = adcC
         
         for n in list(self.AD7124_reg_dict)[0:10]:
             register = self.AD7124_reg_dict[n]
@@ -96,8 +100,11 @@ class AD7124:
 
         # Write 64 1's in a row to reset the AD7124
         self.__adc_xmit_data(0, 0, data3, 3)
+        time.sleep(0.1)
         self.__adc_xmit_data(0, 0, data3, 3)
+        time.sleep(0.1)
         self.__adc_xmit_data(0, 0, data2, 2)
+        time.sleep(0.1)
 
         GPIO.output(self.sync, 1)  # SYNC(CS) HIGH
         time.sleep(DELAY)
@@ -109,6 +116,9 @@ class AD7124:
         while self.get_POR_FLAG():
             time.sleep(0.1)
             print('...')
+
+        self.__reset_conversion_mode()
+        return 'OK'
 
 
     def __adc_xmit_data(self, readWrite, regAddr, data, dataSize):
@@ -236,6 +246,8 @@ class AD7124:
         self.__adc_write_data(self.AD7124_reg_dict['ADC_CONTROL'][0],
                                 self.AD7124_reg_dict['ADC_CONTROL'][1],
                                 self.AD7124_reg_dict['ADC_CONTROL'][2])
+        cntrl_data = self.AD7124_reg_dict['ADC_CONTROL'][1]
+        print(f'writing: {cntrl_data}')
 
     def float_to_int(self, f, sign=False):
         i = int.from_bytes(bytearray(struct.pack(">f", f)), byteorder='big', signed=sign)

@@ -484,8 +484,7 @@ class CMDLoop:
 
             elif cmd == 'reset_adc':
                 sns = int(p1 - 1)
-                self.adcList[sns].reset()
-                retData = 'OK'
+                retData = self.adcList[sns].reset()
 
             elif cmd == 'adc_filt':
                 pass
