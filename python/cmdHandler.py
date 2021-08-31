@@ -69,8 +69,6 @@ class CMDLoop:
 
                 for n in range(len(self.adcList)):
                     temp = round(self.adcList[n].get_temperature(), 3)
-                    # if temp == -999:
-                    #     temp = '---'
                     
                     sns_unitsTmp = self.adcList[n].sns_units
 
@@ -84,7 +82,8 @@ class CMDLoop:
                         raise ValueError(f"Unknown Sensor Units:{sns_unitsTmp} 0=K, 1=C, 2=F")
                     
                     m = f'{n+1:02d}'
-                    self.enqueue_udp(f'{now}, temp_{m}={temp}{sns_units}')
+                    if temp != -999:
+                        self.enqueue_udp(f'{now}, temp_{m}={temp}{sns_units}')
                     self.tlm['sns_temp_'+str(n+1)] = temp
                 
                 # Update DAC Heaters
