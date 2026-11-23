@@ -8,6 +8,7 @@
 import atexit
 import logging
 import signal
+from time import sleep
 
 import RPi.GPIO as GPIO
 
@@ -249,6 +250,8 @@ class io():
             GPIO.output(cs1, 0)
             GPIO.output(cs0, 0)
 
+        sleep(.001)
+        
         # now select the one you want
         if adc_mux_id == 0:
             GPIO.output(cs1, 0)
@@ -269,3 +272,5 @@ class io():
         else:
             GPIO.output(cs1, 1)
             GPIO.output(cs0, 1)
+
+        sleep(.001)

@@ -70,12 +70,8 @@ class AD7124:
                                 'CAL_COEFF_10': [0x00, int.from_bytes(self.eeprom.ADCmem[self.idx][81:85], byteorder='big', signed=True), 4]
                                 }
 
-        if self.idx == 0:
-            # Change CLK_SEL bits to clock at CLK pin only for first ADC
-            adcC = self.AD7124_reg_dict['ADC_CONTROL'][1]
-            adcC |= (1<<0)
-            adcC &=~ (1<<1)
-            self.AD7124_reg_dict['ADC_CONTROL'][1] = adcC
+        # if self.idx == 0:
+        #    self.AD7124_reg_dict['ADC_CONTROL'][1] += 1
         
         for n in list(self.AD7124_reg_dict)[0:10]:
             register = self.AD7124_reg_dict[n]
@@ -706,3 +702,4 @@ class AD7124:
             ADCbyteArray.extend(regByteArray)
 
         self.eeprom.ADCmem[self.idx] = ADCbyteArray
+        
